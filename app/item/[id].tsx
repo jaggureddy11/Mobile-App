@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Linking,
+  Image,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
@@ -20,9 +21,13 @@ import {
   FileText,
   CheckSquare,
   Compass,
+  Globe,
+  Tag as TagIcon,
+  Folder,
 } from 'lucide-react-native';
 import { colors, typography, spacing, radii, shadows } from '@/theme';
 import { useItemsStore } from '@/domain/useItemsStore';
+import { useCollectionsStore } from '@/domain/useCollectionsStore';
 import { ItemType } from '@/domain/types';
 
 export default function ItemDetailScreen() {
@@ -30,7 +35,11 @@ export default function ItemDetailScreen() {
   const router = useRouter();
 
   const { items, doItem, laterItem, letGoItem } = useItemsStore();
+  const { collections } = useCollectionsStore();
   const item = items.find((i) => i.id === id);
+  const collection = item?.collection_id
+    ? collections.find((c) => c.id === item.collection_id)
+    : null;
 
   if (!item) {
     return (
@@ -114,24 +123,58 @@ export default function ItemDetailScreen() {
           contentContainerStyle={styles.contentContainer}
           showsVerticalScrollIndicator={false}
         >
-          {/* Hero Preview Card */}
-          <View style={styles.previewCard}>
-            <View style={styles.previewIconBox}>
-              {renderTypeIcon(item.type)}
-            </View>
-            <View style={styles.badgeRow}>
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{item.type.toUpperCase()}</Text>
-              </View>
-              {item.status === 'done' ? (
-                <View style={[styles.badge, styles.badgeDone]}>
-                  <Text style={[styles.badgeText, styles.badgeTextDone]}>
-                    DONE
-                  </Text>
+          {/* Hero Preview Card / Image */}
+          {item.image_url ? (
+            <View style={styles.heroImageContainer}>
+              <Image source={{ uri: item.image_url }} style={styles.heroImage} resizeMode="cover" />
+              <View style={styles.heroOverlayBadgeRow}>
+                {item.site_name && (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>{item.site_name.toUpperCase()}</Text>
+                  </View>
+                )}
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{item.type.toUpperCase()}</Text>
                 </View>
-              ) : null}
+                {item.status === 'done' && (
+                  <View style={[styles.badge, styles.badgeDone]}>
+                    <Text style={[styles.badgeText, styles.badgeTextDone]}>DONE</Text>
+                  </View>
+                )}
+              </View>
             </View>
-          </View>
+          ) : (
+            <View style={styles.previewCard}>
+              <View style={styles.previewIconBox}>
+                {renderTypeIcon(item.type)}
+              </View>
+              <View style={styles.badgeRow}>
+                {item.site_name && (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>{item.site_name.toUpperCase()}</Text>
+                  </View>
+                )}
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{item.type.toUpperCase()}</Text>
+                </View>
+                {item.status === 'done' ? (
+                  <View style={[styles.badge, styles.badgeDone]}>
+                    <Text style={[styles.badgeText, styles.badgeTextDone]}>
+                      DONE
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+            </View>
+          )}
+
+          {/* Collection Chip if present */}
+          {collection && (
+            <View style={styles.collectionBadge}>
+              <Folder size={13} color={colors.accent} />
+              <Text style={styles.collectionBadgeText}>{collection.name}</Text>
+            </View>
+          )}
 
           {/* Title & Note */}
           <Text style={styles.itemTitle}>{item.title}</Text>
@@ -140,6 +183,17 @@ export default function ItemDetailScreen() {
               <Text style={styles.noteText}>"{item.note}"</Text>
             </View>
           ) : null}
+
+          {/* Tags if present */}
+          {item.tags && item.tags.length > 0 && (
+            <View style={styles.tagsContainer}>
+              {item.tags.map((t) => (
+                <View key={t} style={styles.detailTagChip}>
+                  <Text style={styles.detailTagText}>#{t}</Text>
+                </View>
+              ))}
+            </View>
+          )}
 
           {/* Metadata Grid */}
           <View style={styles.metaGrid}>
@@ -274,6 +328,62 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xxl,
     position: 'relative',
     ...shadows.card,
+  },
+  heroImageContainer: {
+    height: 220,
+    borderRadius: radii.cardLarge,
+    overflow: 'hidden',
+    marginBottom: spacing.xxl,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: 'rgba(212, 196, 176, 0.25)',
+    position: 'relative',
+    ...shadows.card,
+  },
+  heroImage: {
+    width: '100%',
+    height: '100%',
+  },
+  heroOverlayBadgeRow: {
+    position: 'absolute',
+    top: spacing.md,
+    left: spacing.lg,
+    flexDirection: 'row',
+    gap: spacing.xs,
+  },
+  collectionBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(212, 196, 176, 0.25)',
+    paddingHorizontal: spacing.md,
+    paddingVertical: 5,
+    borderRadius: radii.pill,
+    marginBottom: spacing.sm,
+  },
+  collectionBadgeText: {
+    ...typography.presets.tag,
+    color: colors.accent,
+    fontWeight: '700',
+  },
+  tagsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: spacing.lg,
+  },
+  detailTagChip: {
+    backgroundColor: 'rgba(212, 196, 176, 0.2)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: radii.pill,
+  },
+  detailTagText: {
+    ...typography.presets.caption,
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
   },
   previewIconBox: {
     width: 64,
