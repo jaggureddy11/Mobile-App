@@ -28,7 +28,7 @@
   ```text
   » android: expo-share-intent: your Expo SDK version does not match requirements! v8.0.1 needs ^57, found 58.0.0. Please refer to the compatibility table. https://github.com/achorein/expo-share-intent/#versioning
   ```
-  - **Mitigation / Status**: Overrides in `package.json` ensure runtime and lockfile stability on Expo SDK 58. `expo prebuild` creates native iOS ShareExtension target, entitlements, and Android intent-filter blocks without errors, but upstream updates should be monitored for an official SDK 58 tag.
+  - **Mitigation / Status**: Overrides in `package.json` allow `npm install` to resolve without peer-dependency conflicts. They do **not** guarantee runtime compatibility — `expo-share-intent` 8.0.1 has not been tested on a physical device running SDK 58. `expo prebuild` runs without errors and generates the correct iOS ShareExtension target, entitlements, and Android intent-filter blocks, but runtime correctness must be verified on a real device before App Store submission.
 
 ---
 
