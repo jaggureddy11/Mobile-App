@@ -79,6 +79,7 @@ export default function SettingsScreen() {
   };
 
   const handleSyncNow = async () => {
+    if (!FEATURES.cloudSync) return;
     setIsSyncing(true);
     try {
       const result = await syncService.performSync(settings.sync_endpoint);
@@ -95,6 +96,7 @@ export default function SettingsScreen() {
   };
 
   const toggleCloudSync = (val: boolean) => {
+    if (!FEATURES.cloudSync) return;
     updateSettings({ cloud_sync_enabled: val });
   };
 
