@@ -34,6 +34,7 @@ import { useCollectionsStore } from '@/domain/useCollectionsStore';
 import { ItemType, MinuteOption, RemindInterval, DEFAULT_ITEM_MINUTES } from '@/domain/types';
 import { detectItemTypeFromUrl } from '@/platform/useListenShareIntent';
 import { fetchUrlMetadata, UrlMetadata } from '@/platform/metadataScraper';
+import { FEATURES } from '@/config/features';
 
 const TYPE_OPTIONS: { type: ItemType; label: string; icon: React.ComponentType<{ size: number; color: string }> }[] = [
   { type: 'link', label: 'Link', icon: Link2 },
@@ -432,38 +433,40 @@ export default function AddModal() {
             )}
           </View>
 
-          {/* Reminding Feature */}
-          <View style={styles.inputGroup}>
-            <View style={styles.labelWithIcon}>
-              <Bell size={14} color={colors.accent} />
-              <Text style={styles.fieldLabelInline}>REMIND ME</Text>
-            </View>
-            <View style={styles.reminderRow}>
-              {REMINDER_OPTIONS.map((opt) => {
-                const isSelected = selectedReminder === opt.value;
-                return (
-                  <TouchableOpacity
-                    key={opt.value}
-                    style={[
-                      styles.reminderPill,
-                      isSelected && styles.reminderPillActive,
-                    ]}
-                    onPress={() => setSelectedReminder(opt.value)}
-                    activeOpacity={0.8}
-                  >
-                    <Text
+          {/* Reminding Feature (Gated) */}
+          {FEATURES.perItemReminders && (
+            <View style={styles.inputGroup}>
+              <View style={styles.labelWithIcon}>
+                <Bell size={14} color={colors.accent} />
+                <Text style={styles.fieldLabelInline}>REMIND ME</Text>
+              </View>
+              <View style={styles.reminderRow}>
+                {REMINDER_OPTIONS.map((opt) => {
+                  const isSelected = selectedReminder === opt.value;
+                  return (
+                    <TouchableOpacity
+                      key={opt.value}
                       style={[
-                        styles.reminderPillText,
-                        isSelected && styles.reminderPillTextActive,
+                        styles.reminderPill,
+                        isSelected && styles.reminderPillActive,
                       ]}
+                      onPress={() => setSelectedReminder(opt.value)}
+                      activeOpacity={0.8}
                     >
-                      {opt.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
+                      <Text
+                        style={[
+                          styles.reminderPillText,
+                          isSelected && styles.reminderPillTextActive,
+                        ]}
+                      >
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
             </View>
-          </View>
+          )}
 
           {/* Tags Feature */}
           <View style={styles.inputGroup}>

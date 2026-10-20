@@ -21,6 +21,7 @@ import {
 import { colors, typography, spacing, radii, shadows } from '@/theme';
 import { useSettingsStore } from '@/domain/useSettingsStore';
 import { NudgeFrequency } from '@/domain/types';
+import { FEATURES } from '@/config/features';
 import {
   DoodleReading,
   DoodleCollections,
@@ -32,6 +33,7 @@ export default function OnboardingScreen() {
   const router = useRouter();
   const { completeOnboarding, updateSettings } = useSettingsStore();
 
+  const maxSteps = FEATURES.accounts ? 4 : 3;
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [frequency, setFrequency] = useState<NudgeFrequency>('daily');
 
@@ -106,7 +108,7 @@ export default function OnboardingScreen() {
 
             {/* Progress Dots */}
             <View style={styles.progressRow}>
-              {[1, 2, 3, 4].map((i) => (
+              {(FEATURES.accounts ? [1, 2, 3, 4] : [1, 2, 3]).map((i) => (
                 <View
                   key={i}
                   style={[styles.dot, step === i && styles.dotActive]}
@@ -114,7 +116,7 @@ export default function OnboardingScreen() {
               ))}
             </View>
 
-            {step === 4 ? (
+            {FEATURES.accounts && step === 4 ? (
               <TouchableOpacity
                 onPress={() => handleFinish(true)}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -205,7 +207,7 @@ export default function OnboardingScreen() {
             )}
 
             {/* Step 4: Simple Local Sign In / Setup */}
-            {step === 4 && (
+            {FEATURES.accounts && step === 4 && (
               <View style={styles.stepContent}>
                 <Text style={styles.tag}>YOUR SANCTUARY</Text>
                 <Text style={styles.title}>Set up your account</Text>
@@ -278,7 +280,7 @@ export default function OnboardingScreen() {
 
           {/* Footer Navigation Buttons */}
           <View style={styles.footer}>
-            {step < 4 ? (
+            {step < maxSteps ? (
               <TouchableOpacity
                 style={styles.primaryButton}
                 onPress={() => setStep((s) => (s + 1) as 1 | 2 | 3 | 4)}
@@ -290,7 +292,7 @@ export default function OnboardingScreen() {
             ) : (
               <TouchableOpacity
                 style={[styles.primaryButton, isSubmitting && styles.primaryButtonDisabled]}
-                onPress={() => handleFinish(false)}
+                onPress={() => handleFinish(!FEATURES.accounts)}
                 disabled={isSubmitting}
                 activeOpacity={0.85}
               >

@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, ScrollView } from 'react-native';
+import React from 'react';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
-import { User, ArrowLeft, Heart, CheckCircle2, Clock, X } from 'lucide-react-native';
+import { User, ArrowLeft } from 'lucide-react-native';
 import { colors, typography, spacing, radii, shadows } from '@/theme';
-import { useItemsStore } from '@/domain/useItemsStore';
 import { ReMindLogo } from './ReMindLogo';
 
 interface PageHeaderProps {
@@ -13,7 +12,6 @@ interface PageHeaderProps {
   showLogo?: boolean;
   showBack?: boolean;
   showSettingsButton?: boolean;
-  showActivityButton?: boolean;
   onBackPress?: () => void;
   rightAction?: React.ReactNode;
 }
@@ -25,22 +23,14 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
   showLogo,
   showBack = false,
   showSettingsButton = true,
-  showActivityButton = true,
   onBackPress,
   rightAction,
 }) => {
   const router = useRouter();
-  const [showActivityModal, setShowActivityModal] = useState(false);
-  const items = useItemsStore((state) => state.items);
 
   // If no title/back button provided, this is the main home header
   const isHomeHeader = !showBack && !categoryTag && (!title || title === 'Hi friend,\ntake a breather.');
   const displayTitle = title || (isHomeHeader ? '' : 'Hi friend,\ntake a breather.');
-
-  // Recent completed items and let-go activities
-  const recentCompleted = items
-    .filter((i) => i.status === 'done')
-    .slice(0, 10);
 
   const handleBack = () => {
     if (onBackPress) {
@@ -96,22 +86,6 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
           rightAction
         ) : (
           <View style={styles.actionsRow}>
-            {/* Instagram-style Activity / Notifications Heart */}
-            {showActivityButton ? (
-              <TouchableOpacity
-                style={styles.circleButton}
-                onPress={() => setShowActivityModal(true)}
-                activeOpacity={0.8}
-                accessibilityLabel="Activity & notifications"
-                accessibilityRole="button"
-              >
-                <Heart size={20} color={colors.textSecondary} />
-                {recentCompleted.length > 0 ? (
-                  <View style={styles.activityBadgeDot} />
-                ) : null}
-              </TouchableOpacity>
-            ) : null}
-
             {/* Profile / Settings Button */}
             {showSettingsButton ? (
               <TouchableOpacity
@@ -127,63 +101,6 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
           </View>
         )}
       </View>
-
-      {/* Activity / Notifications Modal */}
-      <Modal
-        visible={showActivityModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowActivityModal(false)}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalHeader}>
-              <View style={styles.modalHeaderTitleBox}>
-                <Heart size={20} color={colors.accent} />
-                <Text style={styles.modalTitle}>Activity</Text>
-              </View>
-              <TouchableOpacity
-                style={styles.closeBtn}
-                onPress={() => setShowActivityModal(false)}
-                activeOpacity={0.7}
-              >
-                <X size={18} color={colors.textSecondary} />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView
-              style={styles.modalScroll}
-              showsVerticalScrollIndicator={false}
-            >
-              {recentCompleted.length > 0 ? (
-                recentCompleted.map((item) => (
-                  <View key={item.id} style={styles.activityRow}>
-                    <View style={styles.activityIconBox}>
-                      <CheckCircle2 size={18} color={colors.success} />
-                    </View>
-                    <View style={styles.activityTextBox}>
-                      <Text style={styles.activityItemTitle} numberOfLines={1}>
-                        {item.title}
-                      </Text>
-                      <Text style={styles.activityItemTime}>
-                        Completed {item.minutes}m breather
-                      </Text>
-                    </View>
-                  </View>
-                ))
-              ) : (
-                <View style={styles.modalEmpty}>
-                  <Clock size={28} color={colors.accent} style={{ marginBottom: spacing.sm }} />
-                  <Text style={styles.modalEmptyTitle}>No recent activity</Text>
-                  <Text style={styles.modalEmptySubtitle}>
-                    When you finish an activity or take a breather, your gentle history will show up here.
-                  </Text>
-                </View>
-              )}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 };

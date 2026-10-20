@@ -30,6 +30,7 @@ import { useSettingsStore } from '@/domain/useSettingsStore';
 import { useItemsStore } from '@/domain/useItemsStore';
 import { NudgeFrequency } from '@/domain/types';
 import { syncService } from '@/platform/syncService';
+import { FEATURES } from '@/config/features';
 
 export default function SettingsScreen() {
   const { settings, updateSettings } = useSettingsStore();
@@ -134,57 +135,68 @@ export default function SettingsScreen() {
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
-              <Text style={styles.statNumber}>Offline</Text>
-              <Text style={styles.statLabel}>+ Online</Text>
+              {FEATURES.cloudSync ? (
+                <>
+                  <Text style={styles.statNumber}>Offline</Text>
+                  <Text style={styles.statLabel}>+ Online</Text>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.statNumber}>Private</Text>
+                  <Text style={styles.statLabel}>on device</Text>
+                </>
+              )}
             </View>
           </View>
 
-          {/* Cloud Backup & Sync Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionHeader}>HYBRID CLOUD BACKUP & SYNC</Text>
+          {/* Cloud Backup & Sync Section (Gated) */}
+          {FEATURES.cloudSync && (
+            <View style={styles.section}>
+              <Text style={styles.sectionHeader}>HYBRID CLOUD BACKUP & SYNC</Text>
 
-            <View style={styles.settingRow}>
-              <View style={styles.settingIconBox}>
-                <Cloud size={20} color={colors.accent} />
-              </View>
-              <View style={styles.settingTextContainer}>
-                <Text style={styles.settingTitle}>Cloud Backup</Text>
-                <Text style={styles.settingSubtitle}>
-                  {settings.cloud_sync_enabled ? 'Connected & Offline-ready' : 'Offline local-only mode'}
-                </Text>
-              </View>
-              <Switch
-                value={settings.cloud_sync_enabled}
-                onValueChange={toggleCloudSync}
-                trackColor={{ false: 'rgba(212, 196, 176, 0.4)', true: colors.accent }}
-                thumbColor={colors.background}
-              />
-            </View>
-
-            {settings.cloud_sync_enabled && (
-              <TouchableOpacity
-                style={styles.settingRow}
-                onPress={handleSyncNow}
-                disabled={isSyncing}
-                activeOpacity={0.7}
-              >
+              <View style={styles.settingRow}>
                 <View style={styles.settingIconBox}>
-                  {isSyncing ? (
-                    <ActivityIndicator size="small" color={colors.accent} />
-                  ) : (
-                    <RefreshCw size={19} color={colors.accent} />
-                  )}
+                  <Cloud size={20} color={colors.accent} />
                 </View>
                 <View style={styles.settingTextContainer}>
-                  <Text style={styles.settingTitle}>Sync with Cloud</Text>
-                  <Text style={styles.settingSubtitle}>Last backup: {formatLastSynced()}</Text>
+                  <Text style={styles.settingTitle}>Cloud Backup</Text>
+                  <Text style={styles.settingSubtitle}>
+                    {settings.cloud_sync_enabled ? 'Connected & Offline-ready' : 'Offline local-only mode'}
+                  </Text>
                 </View>
-                <View style={styles.syncBadge}>
-                  <Text style={styles.syncBadgeText}>{isSyncing ? 'Syncing...' : 'Sync Now'}</Text>
-                </View>
-              </TouchableOpacity>
-            )}
-          </View>
+                <Switch
+                  value={settings.cloud_sync_enabled}
+                  onValueChange={toggleCloudSync}
+                  trackColor={{ false: 'rgba(212, 196, 176, 0.4)', true: colors.accent }}
+                  thumbColor={colors.background}
+                />
+              </View>
+
+              {settings.cloud_sync_enabled && (
+                <TouchableOpacity
+                  style={styles.settingRow}
+                  onPress={handleSyncNow}
+                  disabled={isSyncing}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.settingIconBox}>
+                    {isSyncing ? (
+                      <ActivityIndicator size="small" color={colors.accent} />
+                    ) : (
+                      <RefreshCw size={19} color={colors.accent} />
+                    )}
+                  </View>
+                  <View style={styles.settingTextContainer}>
+                    <Text style={styles.settingTitle}>Sync with Cloud</Text>
+                    <Text style={styles.settingSubtitle}>Last backup: {formatLastSynced()}</Text>
+                  </View>
+                  <View style={styles.syncBadge}>
+                    <Text style={styles.syncBadgeText}>{isSyncing ? 'Syncing...' : 'Sync Now'}</Text>
+                  </View>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
 
           {/* Preferences Section */}
           <View style={styles.section}>
