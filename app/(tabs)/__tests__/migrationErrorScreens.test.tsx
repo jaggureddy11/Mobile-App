@@ -1,9 +1,11 @@
 import React from 'react';
 import { render, fireEvent, act } from '@testing-library/react-native';
+import { Share } from 'react-native';
 import TodayScreen from '../today';
 import SavedScreen from '../saved';
 import SettingsScreen from '../settings';
 import * as databaseModule from '@/db/database';
+import { debugLogger } from '@/utils/debugLogger';
 
 jest.mock('lucide-react-native', () => {
   const React = require('react');
@@ -231,6 +233,53 @@ describe('Migration Error Notice on Tab Screens', () => {
       expect(screen.getByText('DATA & FREEDOM')).toBeTruthy();
 
       retrySpy.mockRestore();
+    });
+  });
+
+  describe('DatabaseUpdateNotice "Copy debug info"', () => {
+    it('shares in-memory debug log buffer when database is unavailable, containing only error_name, screen, and timestamp', async () => {
+      // 1. Force database to be completely unavailable
+      databaseModule.setStartupMigrationError('Disk I/O failure: SQLite cannot be reached');
+      await expect(databaseModule.getDatabase()).rejects.toThrow('Database unavailable');
+
+      // 2. Clear debugLogger and log in-memory errors
+      await debugLogger.clear();
+      debugLogger.logError('TodayScreen', new TypeError('Fatal crash on startup'));
+      debugLogger.logError('DatabaseMigration', new RangeError('Index out of bounds'));
+
+      const shareSpy = jest.spyOn(Share, 'share').mockResolvedValue({ action: 'sharedAction' } as any);
+
+      // 3. Render screen displaying DatabaseUpdateNotice
+      const screen = await render(<TodayScreen />);
+      expect(screen.getByTestId('database-update-notice')).toBeTruthy();
+      expect(screen.getByTestId('copy-debug-info-button')).toBeTruthy();
+
+      // 4. Tap "Copy debug info"
+      await act(async () => {
+        fireEvent.press(screen.getByTestId('copy-debug-info-button'));
+      });
+
+      // 5. Verify share was called without touching database
+      expect(shareSpy).toHaveBeenCalledTimes(1);
+      const sharedMessage = shareSpy.mock.calls[0][0].message;
+      expect(sharedMessage).toBeTruthy();
+
+      // 6. Verify contents contains only error_name, screen, timestamp in errors
+      const parsed = JSON.parse(sharedMessage!);
+      expect(parsed.errors).toHaveLength(2);
+
+      for (const err of parsed.errors) {
+        expect(Object.keys(err).sort()).toEqual(['error_name', 'screen', 'timestamp']);
+      }
+      expect(parsed.errors[0].error_name).toBe('TypeError');
+      expect(parsed.errors[0].screen).toBe('TodayScreen');
+      expect(parsed.errors[0].timestamp).toBeDefined();
+
+      expect(parsed.errors[1].error_name).toBe('RangeError');
+      expect(parsed.errors[1].screen).toBe('DatabaseMigration');
+      expect(parsed.errors[1].timestamp).toBeDefined();
+
+      shareSpy.mockRestore();
     });
   });
 });
