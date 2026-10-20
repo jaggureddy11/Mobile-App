@@ -21,11 +21,12 @@ import {
   X,
   Check,
 } from 'lucide-react-native';
-import { PageHeader, ListItem } from '@/components';
+import { PageHeader, ListItem, DatabaseUpdateNotice } from '@/components';
 import { colors, typography, spacing, radii, shadows } from '@/theme';
 import { useItemsStore } from '@/domain/useItemsStore';
 import { useCollectionsStore } from '@/domain/useCollectionsStore';
 import { ItemType, Collection } from '@/domain/types';
+import { getStartupMigrationError, retryDatabaseInitialization } from '@/db/database';
 
 type CategoryFilter = 'all' | ItemType | 'done';
 type SavedViewMode = 'items' | 'collections';
@@ -42,7 +43,7 @@ const FILTER_CHIPS: { label: string; value: CategoryFilter }[] = [
 
 export default function SavedScreen() {
   const router = useRouter();
-  const { items } = useItemsStore();
+  const { items, loadItems } = useItemsStore();
   const {
     collections,
     loadCollections,
@@ -53,6 +54,7 @@ export default function SavedScreen() {
   const [viewMode, setViewMode] = useState<SavedViewMode>('items');
   const [activeFilter, setActiveFilter] = useState<CategoryFilter>('all');
   const [selectedCollection, setSelectedCollection] = useState<Collection | null>(null);
+  const [migrationError, setMigrationError] = useState<string | null>(getStartupMigrationError());
 
   // New Collection Modal State
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -61,7 +63,17 @@ export default function SavedScreen() {
 
   useEffect(() => {
     loadCollections();
+    loadItems();
+    setMigrationError(getStartupMigrationError());
   }, []);
+
+  // Called by DatabaseUpdateNotice AFTER it has already run retryDatabaseInitialization.
+  // Only reloads screen data — does not re-run migrations.
+  const handleRetryMigration = async () => {
+    setMigrationError(null);
+    await loadCollections().catch(() => {});
+    await loadItems().catch(() => {});
+  };
 
   const handleCreateCollection = async () => {
     if (!newCollectionName.trim()) return;
@@ -131,8 +143,12 @@ export default function SavedScreen() {
           categoryTag={selectedCollection ? 'COLLECTION' : 'RE:MIND'}
         />
 
-        {/* Top View Mode Switcher (Items vs Collections) */}
-        {!selectedCollection ? (
+        {migrationError ? (
+          <DatabaseUpdateNotice onRetrySuccess={handleRetryMigration} />
+        ) : (
+          <>
+            {/* Top View Mode Switcher (Items vs Collections) */}
+            {!selectedCollection ? (
           <View style={styles.tabSwitcher}>
             <TouchableOpacity
               style={[
@@ -373,6 +389,8 @@ export default function SavedScreen() {
             )}
           </ScrollView>
         )}
+      </>
+    )}
 
         {/* Create Collection Modal */}
         <Modal

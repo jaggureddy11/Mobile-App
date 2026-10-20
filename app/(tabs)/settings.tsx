@@ -28,7 +28,7 @@ import {
   CheckCircle2,
   FileText,
 } from 'lucide-react-native';
-import { PageHeader } from '@/components';
+import { PageHeader, DatabaseUpdateNotice } from '@/components';
 import { colors, typography, spacing, radii, shadows } from '@/theme';
 import { useSettingsStore } from '@/domain/useSettingsStore';
 import { useItemsStore } from '@/domain/useItemsStore';
@@ -36,12 +36,22 @@ import { NudgeFrequency } from '@/domain/types';
 import { syncService } from '@/platform/syncService';
 import { FEATURES } from '@/config/features';
 import { debugLogger } from '@/utils/debugLogger';
+import { getStartupMigrationError, retryDatabaseInitialization } from '@/db/database';
 
 export default function SettingsScreen() {
-  const { settings, updateSettings } = useSettingsStore();
-  const { items, runPurge } = useItemsStore();
+  const { settings, updateSettings, loadSettings } = useSettingsStore();
+  const { items, runPurge, loadItems } = useItemsStore();
   const [isSyncing, setIsSyncing] = useState(false);
   const [hasNotificationPermission, setHasNotificationPermission] = useState(true);
+  const [migrationError, setMigrationError] = useState<string | null>(getStartupMigrationError());
+
+  // Called by DatabaseUpdateNotice AFTER it has already run retryDatabaseInitialization.
+  // Only reloads screen data — does not re-run migrations.
+  const handleRetryMigration = async () => {
+    setMigrationError(null);
+    await loadSettings().catch(() => {});
+    await loadItems().catch(() => {});
+  };
 
   React.useEffect(() => {
     Notifications.getPermissionsAsync()
@@ -147,11 +157,14 @@ export default function SettingsScreen() {
       <View style={styles.container}>
         <PageHeader title="Settings" categoryTag="RE:MIND" showSettingsButton={false} />
 
-        <ScrollView
-          style={styles.scrollView}
-          contentContainerStyle={styles.contentContainer}
-          showsVerticalScrollIndicator={false}
-        >
+        {migrationError ? (
+          <DatabaseUpdateNotice onRetrySuccess={handleRetryMigration} />
+        ) : (
+          <ScrollView
+            style={styles.scrollView}
+            contentContainerStyle={styles.contentContainer}
+            showsVerticalScrollIndicator={false}
+          >
           {/* Stats Card mirroring profile design */}
           <View style={styles.statsCard}>
             <View style={styles.statItem}>
@@ -368,6 +381,7 @@ export default function SettingsScreen() {
             </Text>
           </View>
         </ScrollView>
+      )}
       </View>
     </SafeAreaView>
   );

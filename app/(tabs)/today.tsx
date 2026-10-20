@@ -20,6 +20,7 @@ import {
   ActivityCard,
   ListItem,
   UndoSnackbar,
+  DatabaseUpdateNotice,
 } from '@/components';
 import { colors, typography, spacing, radii, shadows } from '@/theme';
 import { useItemsStore } from '@/domain/useItemsStore';
@@ -28,7 +29,7 @@ import { useListenShareIntent } from '@/platform/useListenShareIntent';
 import { isItemEligible, getItemMinutes, areAllPendingItemsYoungerThanHidePeriod } from '@/domain/eligibility';
 import { SnoozeOption } from '@/domain/types';
 import { perfTracker } from '@/utils/perfTracker';
-import { getStartupMigrationError, setStartupMigrationError, retryDatabaseInitialization } from '@/db/database';
+import { getStartupMigrationError, setStartupMigrationError } from '@/db/database';
 
 export default function TodayScreen() {
   const router = useRouter();
@@ -75,15 +76,12 @@ export default function TodayScreen() {
     });
   }, [loadSettings, loadItems]);
 
+  // Called by DatabaseUpdateNotice AFTER it has already run retryDatabaseInitialization.
+  // Only reloads screen data — does not re-run migrations.
   const handleRetryMigration = async () => {
-    try {
-      await retryDatabaseInitialization();
-      setMigrationError(null);
-      await loadSettings();
-      await loadItems();
-    } catch {
-      setMigrationError(getStartupMigrationError() || 'Migration retry failed');
-    }
+    setMigrationError(null);
+    await loadSettings().catch(() => {});
+    await loadItems().catch(() => {});
   };
 
   // AppState listener for "Do it" confirmation
@@ -187,22 +185,7 @@ export default function TodayScreen() {
         <PageHeader />
 
         {migrationError ? (
-          <View style={styles.errorContainer}>
-            <View style={styles.emptyIconCircle}>
-              <HelpCircle size={32} color={colors.accent} />
-            </View>
-            <Text style={styles.emptyTitle}>Database Update Notice</Text>
-            <Text style={styles.emptySubtitle}>
-              A database update encountered a recoverable issue. Your saved data remains safe on your device.
-            </Text>
-            <TouchableOpacity
-              style={styles.emptyActionButton}
-              onPress={handleRetryMigration}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.emptyActionText}>Retry loading</Text>
-            </TouchableOpacity>
-          </View>
+          <DatabaseUpdateNotice onRetrySuccess={handleRetryMigration} />
         ) : isLoading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={colors.accent} />

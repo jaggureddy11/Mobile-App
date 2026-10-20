@@ -132,7 +132,7 @@ describe('Migration Error Notice on Tab Screens', () => {
       expect(screen.queryByText('DATA & FREEDOM')).toBeNull();
     });
 
-    it('retrying invokes retryDatabaseInitialization and recovers on success', async () => {
+    it('retrying invokes retryDatabaseInitialization exactly once on tap, not on mount', async () => {
       databaseModule.setStartupMigrationError('Transient lock error');
       const retrySpy = jest.spyOn(databaseModule, 'retryDatabaseInitialization').mockImplementation(async () => {
         databaseModule.setStartupMigrationError(null);
@@ -141,12 +141,15 @@ describe('Migration Error Notice on Tab Screens', () => {
       const screen = await render(<SettingsScreen />);
       expect(screen.getByTestId('database-update-notice')).toBeTruthy();
 
+      // Must NOT be called yet — DatabaseUpdateNotice must not trigger retry on mount.
+      expect(retrySpy).toHaveBeenCalledTimes(0);
+
       await act(async () => {
         fireEvent.press(screen.getByTestId('retry-loading-button'));
       });
 
-      // DatabaseUpdateNotice calls retryDatabaseInitialization; onRetrySuccess is called after.
-      expect(retrySpy).toHaveBeenCalled();
+      // Must be called exactly once after the tap — not twice.
+      expect(retrySpy).toHaveBeenCalledTimes(1);
       expect(screen.queryByTestId('database-update-notice')).toBeNull();
       expect(screen.getByText('DATA & FREEDOM')).toBeTruthy();
 

@@ -6,3 +6,4 @@ export * from './ActivityCard';
 export * from './UndoSnackbar';
 export * from './DoodleIllustrations';
 export * from './ReMindLogo';
+export * from './DatabaseUpdateNotice';
