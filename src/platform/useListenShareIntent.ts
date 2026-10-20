@@ -1,7 +1,9 @@
 import { useEffect } from 'react';
+import { Alert } from 'react-native';
 import { useShareIntent } from 'expo-share-intent';
 import { useItemsStore } from '../domain/useItemsStore';
 import { ItemType, DEFAULT_ITEM_MINUTES } from '../domain/types';
+import { itemsRepo } from '../db/itemsRepo';
 import { fetchUrlMetadata } from './metadataScraper';
 
 export function detectItemTypeFromUrl(url: string): ItemType {
@@ -42,7 +44,22 @@ export function useListenShareIntent() {
       let siteName: string | undefined;
 
       if (webUrl) {
-        // Attempt quick metadata scrape (times out gracefully after 4s)
+        // 1. Check for duplicate normalized URL before anything else
+        try {
+          const existing = await itemsRepo.findByNormalizedUrl(webUrl);
+          if (existing) {
+            Alert.alert(
+              'Already in your list',
+              'This link is already saved in your list.'
+            );
+            resetShareIntent();
+            return;
+          }
+        } catch (err) {
+          console.warn('Error checking URL uniqueness:', err);
+        }
+
+        // 2. Attempt quick metadata scrape (times out gracefully after 4s)
         try {
           const meta = await fetchUrlMetadata(webUrl);
           if (meta) {
@@ -73,6 +90,11 @@ export function useListenShareIntent() {
             image_url: imageUrl || null,
             site_name: siteName || null,
           });
+
+          Alert.alert(
+            'Saved for later',
+            `"${cleanTitle}" was saved to your calm list.`
+          );
         } catch (err) {
           console.error('Failed to save shared intent:', err);
         } finally {

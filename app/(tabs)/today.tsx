@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,9 +9,10 @@ import {
   Linking,
   ActivityIndicator,
   Modal,
+  AppState,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Compass, Award } from 'lucide-react-native';
+import { Compass, Award, Clock, Calendar, CheckCircle2, HelpCircle, Plus, Sparkles } from 'lucide-react-native';
 import {
   PageHeader,
   TimeChip,
@@ -24,6 +25,8 @@ import { colors, typography, spacing, radii, shadows } from '@/theme';
 import { useItemsStore } from '@/domain/useItemsStore';
 import { useSettingsStore } from '@/domain/useSettingsStore';
 import { useListenShareIntent } from '@/platform/useListenShareIntent';
+import { isItemEligible, getItemMinutes } from '@/domain/eligibility';
+import { SnoozeOption } from '@/domain/types';
 
 export default function TodayScreen() {
   const router = useRouter();
@@ -40,16 +43,24 @@ export default function TodayScreen() {
     loadItems,
     setSelectedMinutes,
     doItem,
-    laterItem,
+    snoozeItem,
     letGoItem,
     undoLetGo,
     nextResurfacedItem,
   } = useItemsStore();
 
-  const { settings, loadSettings } = useSettingsStore();
+  const { loadSettings } = useSettingsStore();
 
   // State for celebration modal
   const [celebrationItemTitle, setCelebrationItemTitle] = useState<string | null>(null);
+
+  // State for "Do it" confirm modal on return
+  const [pendingConfirmItemId, setPendingConfirmItemId] = useState<string | null>(null);
+  const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
+  const appState = useRef(AppState.currentState);
+
+  // State for "Later" snooze modal
+  const [showSnoozeModal, setShowSnoozeModal] = useState<boolean>(false);
 
   // Initial load
   useEffect(() => {
@@ -57,30 +68,94 @@ export default function TodayScreen() {
     loadItems();
   }, [loadSettings, loadItems]);
 
+  // AppState listener for "Do it" confirmation
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (
+        appState.current?.match(/inactive|background/) &&
+        nextAppState === 'active'
+      ) {
+        if (pendingConfirmItemId) {
+          setShowConfirmModal(true);
+        }
+      }
+      appState.current = nextAppState;
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [pendingConfirmItemId]);
+
   // "Waiting for you" pending items excluding the active one
   const pendingItems = items.filter(
     (item) => item.status === 'pending' && item.id !== activeItem?.id
   );
   const queuePreview = pendingItems.slice(0, 3);
 
+  // Total saved items across the entire app
+  const totalSavedCount = items.length;
+
+  // Eligible items right now
+  const now = new Date();
+  const eligibleItems = items.filter((item) => isItemEligible(item, now));
+
+  // Determine suggested minutes if activeItem is null but eligible items exist
+  let suggestedMinutes: TimeChipValue = 15;
+  if (!activeItem && eligibleItems.length > 0) {
+    if (selectedMinutes === 5) {
+      suggestedMinutes = eligibleItems.some((i) => getItemMinutes(i) <= 15) ? 15 : 30;
+    } else if (selectedMinutes === 15) {
+      suggestedMinutes = eligibleItems.some((i) => getItemMinutes(i) <= 30) ? 30 : 5;
+    } else {
+      suggestedMinutes = eligibleItems.some((i) => getItemMinutes(i) <= 5) ? 5 : 15;
+    }
+  }
+
   const handleDoIt = async () => {
     if (!activeItem) return;
 
-    // If item has a URL, open it in browser / app
+    // If item has a URL, open it in external browser/app and prompt on return
     if (activeItem.url) {
-      Linking.openURL(activeItem.url).catch((err) =>
-        console.warn('Could not open URL:', err)
-      );
+      setPendingConfirmItemId(activeItem.id);
+      Linking.openURL(activeItem.url).catch((err) => {
+        console.warn('Could not open URL:', err);
+        setPendingConfirmItemId(null);
+      });
+    } else {
+      // Non-URL items (tasks, activities, text) can complete immediately
+      const title = activeItem.title;
+      await doItem(activeItem.id);
+      setCelebrationItemTitle(title);
     }
-
-    const title = activeItem.title;
-    await doItem(activeItem.id);
-    setCelebrationItemTitle(title);
   };
 
-  const handleLater = async () => {
+  const handleConfirmDone = async () => {
+    if (!pendingConfirmItemId) return;
+    const item = items.find((i) => i.id === pendingConfirmItemId);
+    const title = item?.title || '';
+    setShowConfirmModal(false);
+    setPendingConfirmItemId(null);
+    await doItem(pendingConfirmItemId);
+    if (title) {
+      setCelebrationItemTitle(title);
+    }
+  };
+
+  const handleConfirmNotYet = () => {
+    setShowConfirmModal(false);
+    setPendingConfirmItemId(null);
+  };
+
+  const handleLater = () => {
     if (!activeItem) return;
-    await laterItem(activeItem.id);
+    setShowSnoozeModal(true);
+  };
+
+  const handleSelectSnooze = async (option: SnoozeOption) => {
+    if (!activeItem) return;
+    setShowSnoozeModal(false);
+    await snoozeItem(activeItem.id, option);
   };
 
   const handleLetItGo = async () => {
@@ -124,7 +199,7 @@ export default function TodayScreen() {
               </View>
             </View>
 
-            {/* Resurfaced Card or Peaceful Empty State */}
+            {/* Resurfaced Card or 3 Distinct Empty States */}
             <View style={styles.cardSection}>
               {activeItem ? (
                 <ActivityCard
@@ -141,15 +216,55 @@ export default function TodayScreen() {
                     pendingItems.length > 0 ? nextResurfacedItem : undefined
                   }
                 />
-              ) : (
+              ) : totalSavedCount === 0 ? (
+                /* Empty State 1: Nothing saved yet */
                 <View style={styles.emptyStateCard}>
                   <View style={styles.emptyIconCircle}>
                     <Compass size={32} color={colors.accent} />
                   </View>
-                  <Text style={styles.emptyTitle}>All clear for now</Text>
+                  <Text style={styles.emptyTitle}>Nothing saved yet</Text>
                   <Text style={styles.emptySubtitle}>
-                    Nothing saved for this duration. Enjoy your peace, or tap '+' below to save something for later.
+                    Share links from Instagram, YouTube, or your browser to build your calm list.
                   </Text>
+                  <TouchableOpacity
+                    style={styles.emptyActionButton}
+                    onPress={() => router.push('/add')}
+                    activeOpacity={0.85}
+                  >
+                    <Plus size={18} color={colors.background} style={{ marginRight: 6 }} />
+                    <Text style={styles.emptyActionText}>Save an item</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : eligibleItems.length === 0 ? (
+                /* Empty State 3: All caught up */
+                <View style={styles.emptyStateCard}>
+                  <View style={styles.emptyIconCircle}>
+                    <Sparkles size={32} color={colors.accent} />
+                  </View>
+                  <Text style={styles.emptyTitle}>All caught up for now</Text>
+                  <Text style={styles.emptySubtitle}>
+                    Take a breath. Your items are resting and will resurface tomorrow or at your preferred nudge time.
+                  </Text>
+                </View>
+              ) : (
+                /* Empty State 2: Nothing fits this chip right now */
+                <View style={styles.emptyStateCard}>
+                  <View style={styles.emptyIconCircle}>
+                    <Clock size={32} color={colors.accent} />
+                  </View>
+                  <Text style={styles.emptyTitle}>
+                    Nothing fits {selectedMinutes} minutes right now. Try {suggestedMinutes}?
+                  </Text>
+                  <Text style={styles.emptySubtitle}>
+                    You have items waiting that fit longer or shorter moments.
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.emptyActionButton}
+                    onPress={() => setSelectedMinutes(suggestedMinutes)}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.emptyActionText}>Switch to {suggestedMinutes} min</Text>
+                  </TouchableOpacity>
                 </View>
               )}
             </View>
@@ -193,6 +308,113 @@ export default function TodayScreen() {
           itemTitle={undoItem?.title || ''}
           onUndo={undoLetGo}
         />
+
+        {/* "Do it" confirmation modal on AppState return */}
+        <Modal
+          visible={showConfirmModal}
+          transparent
+          animationType="fade"
+          onRequestClose={handleConfirmNotYet}
+        >
+          <View style={styles.modalBackdrop}>
+            <View style={styles.modalCard}>
+              <View style={styles.modalIconBox}>
+                <HelpCircle size={32} color={colors.accent} />
+              </View>
+              <Text style={styles.modalTitle}>Done with it?</Text>
+              <Text style={styles.modalSubtitle}>
+                Did you finish enjoying this item, or should we keep it waiting in your list?
+              </Text>
+
+              <View style={styles.modalButtonsRow}>
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.modalButtonSecondary]}
+                  onPress={handleConfirmNotYet}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.modalButtonSecondaryText}>Keep waiting</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.modalButton, styles.modalButtonPrimary]}
+                  onPress={handleConfirmDone}
+                  activeOpacity={0.85}
+                >
+                  <CheckCircle2 size={18} color={colors.background} style={{ marginRight: 6 }} />
+                  <Text style={styles.modalButtonPrimaryText}>Yes, done!</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+
+        {/* "Later" Snooze Options Modal */}
+        <Modal
+          visible={showSnoozeModal}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowSnoozeModal(false)}
+        >
+          <View style={styles.modalBackdrop}>
+            <View style={styles.snoozeSheet}>
+              <View style={styles.sheetHandle} />
+              <Text style={styles.snoozeTitle}>Snooze for Later</Text>
+              <Text style={styles.snoozeSubtitle}>
+                When would you like this item to resurface?
+              </Text>
+
+              <TouchableOpacity
+                style={styles.snoozeOption}
+                onPress={() => handleSelectSnooze('tomorrow')}
+                activeOpacity={0.7}
+              >
+                <View style={styles.snoozeIconBox}>
+                  <Clock size={20} color={colors.accent} />
+                </View>
+                <View style={styles.snoozeTextBox}>
+                  <Text style={styles.snoozeOptionTitle}>Tomorrow</Text>
+                  <Text style={styles.snoozeOptionDesc}>Resurfaces tomorrow at your nudge time</Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.snoozeOption}
+                onPress={() => handleSelectSnooze('weekend')}
+                activeOpacity={0.7}
+              >
+                <View style={styles.snoozeIconBox}>
+                  <Calendar size={20} color={colors.accent} />
+                </View>
+                <View style={styles.snoozeTextBox}>
+                  <Text style={styles.snoozeOptionTitle}>This weekend</Text>
+                  <Text style={styles.snoozeOptionDesc}>Saturday at 10:00 AM</Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.snoozeOption}
+                onPress={() => handleSelectSnooze('next_week')}
+                activeOpacity={0.7}
+              >
+                <View style={styles.snoozeIconBox}>
+                  <Sparkles size={20} color={colors.accent} />
+                </View>
+                <View style={styles.snoozeTextBox}>
+                  <Text style={styles.snoozeOptionTitle}>Next week</Text>
+                  <Text style={styles.snoozeOptionDesc}>Monday at your nudge time</Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.snoozeCancelButton}
+                onPress={() => setShowSnoozeModal(false)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.snoozeCancelText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
 
         {/* Celebration Modal after completing an item */}
         <Modal
@@ -282,6 +504,7 @@ const styles = StyleSheet.create({
   emptyTitle: {
     ...typography.presets.title1,
     color: colors.textPrimary,
+    textAlign: 'center',
     marginBottom: spacing.sm,
   },
   emptySubtitle: {
@@ -289,6 +512,22 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
     lineHeight: 22,
+    marginBottom: spacing.lg,
+  },
+  emptyActionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.textPrimary,
+    paddingHorizontal: spacing.xl,
+    height: 46,
+    borderRadius: radii.pill,
+    ...shadows.soft,
+  },
+  emptyActionText: {
+    ...typography.presets.button,
+    color: colors.background,
+    fontSize: 14,
   },
   listSection: {
     paddingHorizontal: spacing.xxl,
@@ -310,6 +549,144 @@ const styles = StyleSheet.create({
   },
   itemsList: {
     gap: spacing.md,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: colors.overlay,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.xxl,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 340,
+    backgroundColor: colors.card,
+    borderRadius: radii.cardLarge,
+    padding: spacing.xxxl,
+    alignItems: 'center',
+    textAlign: 'center',
+    ...shadows.card,
+  },
+  modalIconBox: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.md,
+  },
+  modalTitle: {
+    ...typography.presets.title1,
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
+  },
+  modalSubtitle: {
+    ...typography.presets.body,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: spacing.xxl,
+  },
+  modalButtonsRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    width: '100%',
+  },
+  modalButton: {
+    flex: 1,
+    height: 48,
+    borderRadius: radii.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+  },
+  modalButtonPrimary: {
+    backgroundColor: colors.textPrimary,
+    ...shadows.soft,
+  },
+  modalButtonPrimaryText: {
+    ...typography.presets.button,
+    color: colors.background,
+    fontSize: 14,
+  },
+  modalButtonSecondary: {
+    backgroundColor: colors.background,
+    borderWidth: 1,
+    borderColor: 'rgba(212, 196, 176, 0.4)',
+  },
+  modalButtonSecondaryText: {
+    ...typography.presets.button,
+    color: colors.textPrimary,
+    fontSize: 14,
+  },
+  snoozeSheet: {
+    width: '100%',
+    maxWidth: 380,
+    backgroundColor: colors.card,
+    borderRadius: radii.cardLarge,
+    padding: spacing.xxl,
+    ...shadows.card,
+  },
+  sheetHandle: {
+    width: 36,
+    height: 4,
+    backgroundColor: 'rgba(122, 114, 101, 0.3)',
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: spacing.lg,
+  },
+  snoozeTitle: {
+    ...typography.presets.title1,
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
+  },
+  snoozeSubtitle: {
+    ...typography.presets.body,
+    color: colors.textSecondary,
+    marginBottom: spacing.lg,
+  },
+  snoozeOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(212, 196, 176, 0.2)',
+  },
+  snoozeIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: radii.lg,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.md,
+  },
+  snoozeTextBox: {
+    flex: 1,
+  },
+  snoozeOptionTitle: {
+    ...typography.presets.bodyLarge,
+    fontWeight: '700',
+    color: colors.textPrimary,
+  },
+  snoozeOptionDesc: {
+    ...typography.presets.caption,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  snoozeCancelButton: {
+    marginTop: spacing.lg,
+    height: 46,
+    borderRadius: radii.xl,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  snoozeCancelText: {
+    ...typography.presets.button,
+    color: colors.textSecondary,
   },
   celebrationBackdrop: {
     flex: 1,
@@ -373,3 +750,4 @@ const styles = StyleSheet.create({
     color: colors.background,
   },
 });
+

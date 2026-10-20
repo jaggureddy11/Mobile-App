@@ -1,6 +1,19 @@
 import * as Crypto from 'expo-crypto';
 import { getDatabase } from './database';
 import { Item, CreateItemInput, ItemStatus, DEFAULT_ITEM_MINUTES } from '../domain/types';
+import { normalizeUrl } from '../domain/urlUtils';
+
+function generateUUID(): string {
+  try {
+    const id = Crypto?.randomUUID?.();
+    if (id) return id;
+  } catch {}
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
 
 function deserializeItem(row: any): Item {
   let parsedTags: string[] = [];
@@ -14,6 +27,8 @@ function deserializeItem(row: any): Item {
   return {
     ...row,
     tags: Array.isArray(parsedTags) ? parsedTags : [],
+    times_surfaced: row.times_surfaced ?? 0,
+    snoozed_until: row.snoozed_until ?? null,
   };
 }
 
@@ -56,13 +71,29 @@ export const itemsRepo = {
     return row ? deserializeItem(row) : null;
   },
 
+  async findByNormalizedUrl(rawUrl: string): Promise<Item | null> {
+    const normalizedTarget = normalizeUrl(rawUrl);
+    if (!normalizedTarget) return null;
+
+    const db = await getDatabase();
+    const rows = await db.getAllAsync<any>(
+      "SELECT * FROM items WHERE url IS NOT NULL AND status != 'let_go'"
+    );
+    for (const row of rows) {
+      if (normalizeUrl(row.url) === normalizedTarget) {
+        return deserializeItem(row);
+      }
+    }
+    return null;
+  },
+
   async create(input: CreateItemInput): Promise<Item> {
     const db = await getDatabase();
     const remindAt = input.remind_at || calculateRemindAt(input.remind_interval);
     const tagsJson = JSON.stringify(input.tags || []);
 
     const newItem: Item = {
-      id: Crypto.randomUUID(),
+      id: generateUUID(),
       type: input.type,
       title: input.title.trim(),
       url: input.url?.trim() || null,
@@ -73,6 +104,8 @@ export const itemsRepo = {
       done_at: null,
       let_go_at: null,
       resurfaced_at: null,
+      snoozed_until: input.snoozed_until || null,
+      times_surfaced: input.times_surfaced || 0,
       collection_id: input.collection_id || null,
       tags: input.tags || [],
       remind_interval: input.remind_interval || 'none',
@@ -82,8 +115,8 @@ export const itemsRepo = {
     };
 
     await db.runAsync(
-      `INSERT INTO items (id, type, title, url, note, minutes, status, created_at, done_at, let_go_at, resurfaced_at, collection_id, tags, remind_interval, remind_at, image_url, site_name)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO items (id, type, title, url, note, minutes, status, created_at, done_at, let_go_at, resurfaced_at, snoozed_until, times_surfaced, collection_id, tags, remind_interval, remind_at, image_url, site_name)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         newItem.id,
         newItem.type,
@@ -96,6 +129,8 @@ export const itemsRepo = {
         newItem.done_at ?? null,
         newItem.let_go_at ?? null,
         newItem.resurfaced_at ?? null,
+        newItem.snoozed_until ?? null,
+        newItem.times_surfaced ?? 0,
         newItem.collection_id ?? null,
         tagsJson,
         newItem.remind_interval ?? null,
@@ -120,6 +155,42 @@ export const itemsRepo = {
     );
 
     return this.getById(id);
+  },
+
+  async snooze(id: string, snoozedUntilUtc: string): Promise<void> {
+    const db = await getDatabase();
+    const now = new Date().toISOString();
+    await db.runAsync(
+      'UPDATE items SET snoozed_until = ?, resurfaced_at = ? WHERE id = ?',
+      [snoozedUntilUtc, now, id]
+    );
+  },
+
+  async recordSurfaceEvent(itemId: string, chipMinutes: number): Promise<string> {
+    const db = await getDatabase();
+    const eventId = generateUUID();
+    const now = new Date().toISOString();
+    await db.withTransactionAsync(async () => {
+      await db.runAsync(
+        `INSERT INTO surface_events (id, item_id, shown_at, chip_minutes, action, acted_at)
+         VALUES (?, ?, ?, ?, NULL, NULL)`,
+        [eventId, itemId, now, chipMinutes]
+      );
+      await db.runAsync(
+        `UPDATE items SET times_surfaced = COALESCE(times_surfaced, 0) + 1, resurfaced_at = ? WHERE id = ?`,
+        [now, itemId]
+      );
+    });
+    return eventId;
+  },
+
+  async recordSurfaceAction(eventId: string, action: string): Promise<void> {
+    const db = await getDatabase();
+    const now = new Date().toISOString();
+    await db.runAsync(
+      `UPDATE surface_events SET action = ?, acted_at = ? WHERE id = ?`,
+      [action, now, eventId]
+    );
   },
 
   async markResurfaced(id: string): Promise<void> {

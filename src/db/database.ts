@@ -30,6 +30,8 @@ export async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
       done_at TEXT,
       let_go_at TEXT,
       resurfaced_at TEXT,
+      snoozed_until TEXT,
+      times_surfaced INTEGER DEFAULT 0,
       collection_id TEXT,
       tags TEXT,
       remind_interval TEXT,
@@ -42,6 +44,20 @@ export async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_items_minutes ON items(minutes);
     CREATE INDEX IF NOT EXISTS idx_items_created_at ON items(created_at);
     CREATE INDEX IF NOT EXISTS idx_items_collection ON items(collection_id);
+    CREATE INDEX IF NOT EXISTS idx_items_snoozed ON items(snoozed_until);
+    CREATE INDEX IF NOT EXISTS idx_items_times_surfaced ON items(times_surfaced);
+
+    CREATE TABLE IF NOT EXISTS surface_events (
+      id TEXT PRIMARY KEY NOT NULL,
+      item_id TEXT NOT NULL,
+      shown_at TEXT NOT NULL,
+      chip_minutes INTEGER NOT NULL,
+      action TEXT,
+      acted_at TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_surface_events_item ON surface_events(item_id);
+    CREATE INDEX IF NOT EXISTS idx_surface_events_shown ON surface_events(shown_at);
 
     CREATE TABLE IF NOT EXISTS collections (
       id TEXT PRIMARY KEY NOT NULL,
@@ -63,9 +79,48 @@ export async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
   try { await db.execAsync('ALTER TABLE items ADD COLUMN remind_at TEXT;'); } catch {}
   try { await db.execAsync('ALTER TABLE items ADD COLUMN image_url TEXT;'); } catch {}
   try { await db.execAsync('ALTER TABLE items ADD COLUMN site_name TEXT;'); } catch {}
+  try { await db.execAsync('ALTER TABLE items ADD COLUMN snoozed_until TEXT;'); } catch {}
+  try { await db.execAsync('ALTER TABLE items ADD COLUMN times_surfaced INTEGER DEFAULT 0;'); } catch {}
 
   // Numbered Migration 001: Purge user_password data and rebuild settings table without column
   await migratePurgePassword(db);
+
+  // Numbered Migration 002: Detect duplicates and safely create partial unique index on non-empty URLs
+  await migrateUrlIndex(db);
+}
+
+export async function detectAndReportUrlDuplicates(db: SQLite.SQLiteDatabase): Promise<string[]> {
+  try {
+    const rows = await db.getAllAsync<{ url: string; count: number }>(`
+      SELECT url, COUNT(*) as count
+      FROM items
+      WHERE url IS NOT NULL AND TRIM(url) != ''
+      GROUP BY url
+      HAVING count > 1;
+    `);
+    if (rows && rows.length > 0) {
+      console.warn('Existing duplicate URLs detected in database:', rows);
+      return rows.map((r) => r.url);
+    }
+  } catch {}
+  return [];
+}
+
+export async function migrateUrlIndex(db: SQLite.SQLiteDatabase): Promise<void> {
+  try {
+    const duplicates = await detectAndReportUrlDuplicates(db);
+    if (duplicates.length === 0) {
+      await db.execAsync(`
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_items_unique_url
+        ON items(url)
+        WHERE url IS NOT NULL AND TRIM(url) != '';
+      `);
+    } else {
+      console.warn('Skipping unique URL index creation due to existing duplicates; application-level deduplication active.');
+    }
+  } catch (err) {
+    console.warn('URL index migration note:', err);
+  }
 }
 
 export async function migratePurgePassword(db: SQLite.SQLiteDatabase): Promise<void> {

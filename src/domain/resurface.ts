@@ -1,38 +1,82 @@
 import { Item, MinuteOption } from './types';
+import { isItemEligible, getItemMinutes } from './eligibility';
+
+export interface PickOptions {
+  checkEligibility?: boolean;
+  allowFallback?: boolean;
+  now?: Date;
+}
 
 /**
  * Resurfacing algorithm:
- * Given a list of pending items and the user's selected available time (5, 15, or 30 minutes),
- * pick one pending item:
- * 1. Filter items whose duration is <= selectedMinutes.
- * 2. If candidates exist:
- *    - Sort primarily by `resurfaced_at` ASC (items never resurfaced or least-recently resurfaced come first).
- *    - Secondary sort by `created_at` ASC (older items get prioritized).
- * 3. Fallback: If no candidate fits within selectedMinutes (e.g. user chose 5 min but only has 15 min tasks),
- *    return the shortest item available to ensure they still get something, or null if list is empty.
+ * Given items and the user's selected time chip (5, 15, or 30 minutes):
+ * 1. Filter eligible items (pending, not snoozed, 24h waiting period if checkEligibility enabled).
+ * 2. Filter items whose duration is <= selectedMinutes.
+ * 3. Sort:
+ *    - times_surfaced ASC (items surfaced fewer times come first)
+ *    - resurfaced_at ASC (unseen items with null resurfaced_at prioritized)
+ *    - created_at ASC (older items get prioritized)
+ * 4. Fallback: If no candidate fits within selectedMinutes and allowFallback is enabled,
+ *    return the shortest item available; otherwise return null to trigger "Nothing fits this chip" state.
  */
 export function pickResurfacedItem(
   items: Item[],
   selectedMinutes: MinuteOption,
-  currentExcludedId?: string | null
+  currentExcludedId?: string | null,
+  options: PickOptions = { allowFallback: true }
 ): Item | null {
-  const pendingItems = items.filter(
-    (item) => item.status === 'pending' && item.id !== currentExcludedId
-  );
+  const now = options.now || new Date();
+
+  // Filter pool
+  const pendingItems = items.filter((item) => {
+    if (options.checkEligibility) {
+      if (!isItemEligible(item, now)) return false;
+    } else {
+      if (item.status !== 'pending') return false;
+      if (item.snoozed_until && new Date(item.snoozed_until).getTime() > now.getTime()) {
+        return false;
+      }
+    }
+    return item.id !== currentExcludedId;
+  });
 
   if (pendingItems.length === 0) {
     // If excluding currentExcludedId emptied the list, check if current item is the only pending one
-    const fallback = items.filter((item) => item.status === 'pending');
-    return fallback[0] || null;
+    const fallback = items.filter((item) => {
+      if (options.checkEligibility) return isItemEligible(item, now);
+      return item.status === 'pending';
+    });
+    if (fallback.length === 1 && fallback[0].id === currentExcludedId) {
+      return fallback[0];
+    }
+    return null;
   }
 
   // 1. Items that fit within selected time
-  const fittingItems = pendingItems.filter((item) => item.minutes <= selectedMinutes);
+  const fittingItems = pendingItems.filter(
+    (item) => getItemMinutes(item) <= selectedMinutes
+  );
 
-  const pool = fittingItems.length > 0 ? fittingItems : pendingItems;
+  let pool: Item[] = [];
+  if (fittingItems.length > 0) {
+    pool = fittingItems;
+  } else if (options.allowFallback) {
+    // Fallback: sort all pending items by duration ascending first, then priority
+    pool = [...pendingItems].sort((a, b) => getItemMinutes(a) - getItemMinutes(b));
+    const shortestMinutes = getItemMinutes(pool[0]);
+    pool = pool.filter((item) => getItemMinutes(item) === shortestMinutes);
+  } else {
+    return null;
+  }
 
-  // Sort by resurfaced_at ASC (nulls first), then created_at ASC
+  // Sort by times_surfaced ASC, then resurfaced_at ASC (nulls first), then created_at ASC
   const sorted = [...pool].sort((a, b) => {
+    const timesA = a.times_surfaced ?? 0;
+    const timesB = b.times_surfaced ?? 0;
+    if (timesA !== timesB) {
+      return timesA - timesB;
+    }
+
     if (!a.resurfaced_at && b.resurfaced_at) return -1;
     if (a.resurfaced_at && !b.resurfaced_at) return 1;
     if (a.resurfaced_at && b.resurfaced_at) {

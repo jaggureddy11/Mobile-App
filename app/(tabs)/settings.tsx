@@ -10,9 +10,12 @@ import {
   Share,
   ActivityIndicator,
   Switch,
+  Linking,
 } from 'react-native';
+import * as Notifications from 'expo-notifications';
 import {
   Bell,
+  BellOff,
   Clock,
   Moon,
   Download,
@@ -36,6 +39,13 @@ export default function SettingsScreen() {
   const { settings, updateSettings } = useSettingsStore();
   const { items, runPurge } = useItemsStore();
   const [isSyncing, setIsSyncing] = useState(false);
+  const [hasNotificationPermission, setHasNotificationPermission] = useState(true);
+
+  React.useEffect(() => {
+    Notifications.getPermissionsAsync()
+      .then(({ status }) => setHasNotificationPermission(status === 'granted'))
+      .catch(() => {});
+  }, []);
 
   const savedCount = items.filter((i) => i.status === 'pending').length;
   const doneCount = items.filter((i) => i.status === 'done').length;
@@ -201,6 +211,27 @@ export default function SettingsScreen() {
           {/* Preferences Section */}
           <View style={styles.section}>
             <Text style={styles.sectionHeader}>NUDGES & CALM REMINDERS</Text>
+
+            {!hasNotificationPermission && settings.nudge_frequency !== 'never' && (
+              <View style={styles.permissionWarningBanner}>
+                <View style={styles.warningIconBox}>
+                  <BellOff size={20} color={colors.accent} />
+                </View>
+                <View style={styles.warningTextBox}>
+                  <Text style={styles.warningTitle}>Notifications are disabled</Text>
+                  <Text style={styles.warningSubtitle}>
+                    Enable notifications in your device settings to receive your gentle daily or weekly nudges.
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.openSettingsButton}
+                    onPress={() => Linking.openSettings().catch(() => {})}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.openSettingsText}>Open device settings</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
 
             <TouchableOpacity
               style={styles.settingRow}
@@ -448,5 +479,52 @@ const styles = StyleSheet.create({
     ...typography.presets.caption,
     color: colors.accent,
     fontStyle: 'italic',
+  },
+  permissionWarningBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: 'rgba(197, 168, 128, 0.15)',
+    padding: spacing.lg,
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(197, 168, 128, 0.35)',
+    gap: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  warningIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  warningTextBox: {
+    flex: 1,
+  },
+  warningTitle: {
+    ...typography.presets.bodyLarge,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    marginBottom: 2,
+  },
+  warningSubtitle: {
+    ...typography.presets.caption,
+    color: colors.textSecondary,
+    lineHeight: 18,
+    marginBottom: spacing.sm,
+  },
+  openSettingsButton: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.textPrimary,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    borderRadius: radii.pill,
+  },
+  openSettingsText: {
+    ...typography.presets.caption,
+    color: colors.background,
+    fontWeight: '700',
+    fontSize: 12,
   },
 });

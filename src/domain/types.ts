@@ -4,6 +4,8 @@ export type ItemStatus = 'pending' | 'done' | 'let_go';
 
 export type MinuteOption = 1 | 5 | 15 | 30;
 
+export type { SnoozeOption } from './snooze';
+
 export type RemindInterval = 'none' | 'daily' | '1_day' | '2_days' | '1_month';
 
 export interface Collection {
@@ -22,10 +24,12 @@ export interface Item {
   note?: string | null;
   minutes: MinuteOption;
   status: ItemStatus;
-  created_at: string; // ISO 8601 string
+  created_at: string; // ISO 8601 UTC string
   done_at?: string | null;
   let_go_at?: string | null;
   resurfaced_at?: string | null;
+  snoozed_until?: string | null; // ISO 8601 UTC string
+  times_surfaced?: number;
   collection_id?: string | null;
   tags?: string[];
   remind_interval?: RemindInterval | null;
@@ -34,12 +38,23 @@ export interface Item {
   site_name?: string | null;
 }
 
+export interface SurfaceEvent {
+  id: string;
+  item_id: string;
+  shown_at: string; // ISO 8601 UTC string
+  chip_minutes: number;
+  action?: 'do' | 'later' | 'let_go' | 'skip' | null;
+  acted_at?: string | null;
+}
+
 export type CreateItemInput = {
   type: ItemType;
   title: string;
   url?: string | null;
   note?: string | null;
   minutes?: MinuteOption;
+  snoozed_until?: string | null;
+  times_surfaced?: number;
   collection_id?: string | null;
   tags?: string[];
   remind_interval?: RemindInterval | null;

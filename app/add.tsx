@@ -11,6 +11,7 @@ import {
   ScrollView,
   Image,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
@@ -31,6 +32,7 @@ import {
 import { colors, typography, spacing, radii, shadows } from '@/theme';
 import { useItemsStore } from '@/domain/useItemsStore';
 import { useCollectionsStore } from '@/domain/useCollectionsStore';
+import { itemsRepo } from '@/db/itemsRepo';
 import { ItemType, MinuteOption, RemindInterval, DEFAULT_ITEM_MINUTES } from '@/domain/types';
 import { detectItemTypeFromUrl } from '@/platform/useListenShareIntent';
 import { fetchUrlMetadata, UrlMetadata } from '@/platform/metadataScraper';
@@ -169,6 +171,18 @@ export default function AddModal() {
 
     setIsSubmitting(true);
     try {
+      if (url.trim()) {
+        const existing = await itemsRepo.findByNormalizedUrl(url.trim());
+        if (existing) {
+          Alert.alert(
+            'Already in your list',
+            'This link is already saved in your list.'
+          );
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
       await addItem({
         type: selectedType,
         title: title.trim() || url.trim(),

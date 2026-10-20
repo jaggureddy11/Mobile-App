@@ -3,15 +3,21 @@ import { Platform } from 'react-native';
 import { UserSettings } from '../domain/types';
 
 // Configure notification presentation behavior
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: false,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+try {
+  if (typeof Notifications?.setNotificationHandler === 'function') {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: false,
+        shouldSetBadge: false,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      }),
+    });
+  }
+} catch {
+  // Graceful fallback in test environments
+}
 
 export async function requestNotificationPermission(): Promise<boolean> {
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
@@ -33,8 +39,8 @@ export async function scheduleNudgeNotification(settings: UserSettings): Promise
     return;
   }
 
-  const hasPermission = await requestNotificationPermission();
-  if (!hasPermission) {
+  const { status } = await Notifications.getPermissionsAsync();
+  if (status !== 'granted') {
     return;
   }
 
