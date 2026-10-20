@@ -394,6 +394,48 @@ describe('Database Migration & Data Preservation', () => {
     await expect(initSchema(strictDb)).resolves.not.toThrow();
   });
 
+  it('fails immediately if a migration statement mistakenly touches the outer db handle inside withExclusiveTransactionAsync', async () => {
+    let inExclusiveTxn = false;
+
+    const outerGuard = (methodName: string) => {
+      if (inExclusiveTxn) {
+        throw new Error(
+          `CRITICAL_VIOLATION: Outer db.${methodName}() called inside withExclusiveTransactionAsync! Migrations must use the txn handle.`
+        );
+      }
+    };
+
+    const faultyDb: any = {
+      ...mockDb,
+      execAsync: jest.fn().mockImplementation(async (sql: string) => {
+        outerGuard('execAsync');
+        return mockDb.execAsync(sql);
+      }),
+      withExclusiveTransactionAsync: jest.fn().mockImplementation(async (cb: (txn: any) => Promise<any>) => {
+        inExclusiveTxn = true;
+        try {
+          return await cb({
+            execAsync: jest.fn().mockImplementation(async () => {
+              // Simulates a bug where migration touches the outer db handle instead of txn
+              await faultyDb.execAsync('SELECT 1;');
+            }),
+            getAllAsync: jest.fn().mockResolvedValue([]),
+            getFirstAsync: jest.fn().mockResolvedValue(null),
+            runAsync: jest.fn().mockResolvedValue({}),
+          });
+        } finally {
+          inExclusiveTxn = false;
+        }
+      }),
+    };
+
+    await expect(
+      faultyDb.withExclusiveTransactionAsync(async (txn: any) => {
+        await txn.execAsync('ALTER TABLE items ADD COLUMN test TEXT;');
+      })
+    ).rejects.toThrow('CRITICAL_VIOLATION: Outer db.execAsync() called inside withExclusiveTransactionAsync!');
+  });
+
   it('proves that retryDatabaseInitialization flushes in-memory debug log buffer to SQLite upon successful retry', async () => {
     const { debugLogger } = require('../../utils/debugLogger');
     await debugLogger.clear();
