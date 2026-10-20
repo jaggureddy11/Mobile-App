@@ -1,6 +1,6 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { PlayCircle, Link2, FileText, CheckSquare, Compass } from 'lucide-react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { PlayCircle, Link2, FileText, CheckSquare, Compass, Globe } from 'lucide-react-native';
 import { colors, typography, spacing, radii, shadows } from '@/theme';
 import { ItemType } from './ListItem';
 
@@ -9,6 +9,9 @@ interface ActivityCardProps {
   typeLabel?: string;
   title: string;
   note?: string | null;
+  imageUrl?: string | null;
+  siteName?: string | null;
+  tags?: string[];
   onDoIt: () => void;
   onLater: () => void;
   onLetItGo: () => void;
@@ -20,6 +23,9 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
   typeLabel,
   title,
   note,
+  imageUrl,
+  siteName,
+  tags,
   onDoIt,
   onLater,
   onLetItGo,
@@ -41,7 +47,7 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
     }
   };
 
-  const displayTypeLabel = typeLabel || (
+  const displayTypeLabel = siteName || typeLabel || (
     type === 'reel' ? 'Instagram Reel' :
     type === 'link' ? 'Web Link' :
     type === 'task' ? 'Task' :
@@ -50,6 +56,13 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
 
   return (
     <View style={styles.card}>
+      {/* Rich Preview Image if available */}
+      {imageUrl ? (
+        <View style={styles.cardImageContainer}>
+          <Image source={{ uri: imageUrl }} style={styles.cardImage} resizeMode="cover" />
+        </View>
+      ) : null}
+
       {/* Type Badge */}
       <View style={styles.typeBadgeRow}>
         <View style={styles.typeIconBox}>
@@ -67,6 +80,17 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
           {note ? `“${note}”` : '“You wanted to do this once.”'}
         </Text>
       </View>
+
+      {/* Tags Chips */}
+      {tags && tags.length > 0 && (
+        <View style={styles.tagsRow}>
+          {tags.map((t) => (
+            <View key={t} style={styles.tagChip}>
+              <Text style={styles.tagText}>#{t}</Text>
+            </View>
+          ))}
+        </View>
+      )}
 
       {/* Action Buttons */}
       <View style={styles.actionsContainer}>
@@ -129,6 +153,36 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borderSubtle,
     ...shadows.card,
+    overflow: 'hidden',
+  },
+  cardImageContainer: {
+    height: 160,
+    marginHorizontal: -spacing.xxl,
+    marginTop: -spacing.xxl,
+    marginBottom: spacing.lg,
+    backgroundColor: 'rgba(212, 196, 176, 0.2)',
+  },
+  cardImage: {
+    width: '100%',
+    height: '100%',
+  },
+  tagsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: spacing.lg,
+  },
+  tagChip: {
+    backgroundColor: 'rgba(212, 196, 176, 0.25)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: radii.pill,
+  },
+  tagText: {
+    ...typography.presets.caption,
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.textSecondary,
   },
   typeBadgeRow: {
     flexDirection: 'row',

@@ -131,6 +131,9 @@ export default function TodayScreen() {
                   type={activeItem.type}
                   title={activeItem.title}
                   note={activeItem.note || 'You wanted to do this once.'}
+                  imageUrl={activeItem.image_url}
+                  siteName={activeItem.site_name}
+                  tags={activeItem.tags}
                   onDoIt={handleDoIt}
                   onLater={handleLater}
                   onLetItGo={handleLetItGo}
@@ -171,6 +174,9 @@ export default function TodayScreen() {
                       type={item.type}
                       title={item.title}
                       meta={`${item.type.charAt(0).toUpperCase() + item.type.slice(1)} • ${item.minutes} min`}
+                      tags={item.tags}
+                      imageUrl={item.image_url}
+                      siteName={item.site_name}
                       isDimmed={idx > 0}
                       onPress={() => router.push(`/item/${item.id}`)}
                     />
