@@ -211,7 +211,7 @@ export default function SplashScreen() {
 
         {/* Brand Title & Typography */}
         <Animated.View style={[styles.brandContainer, textAnimatedStyle]}>
-          <Text style={styles.brandTitle}>MAYBE LATER</Text>
+          <Text style={styles.brandTitle}>Re:Mind</Text>
           <View style={styles.titleDivider} />
         </Animated.View>
 

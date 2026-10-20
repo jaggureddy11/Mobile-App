@@ -19,7 +19,7 @@ interface PageHeaderProps {
 export const PageHeader: React.FC<PageHeaderProps> = ({
   title = 'Hi friend,\ntake a breather.',
   subtitle,
-  categoryTag = 'MAYBE LATER',
+  categoryTag = 'RE:MIND',
   showBack = false,
   showSettingsButton = true,
   showActivityButton = true,

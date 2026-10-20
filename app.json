@@ -1,15 +1,15 @@
 {
   "expo": {
-    "name": "Maybe Later",
-    "slug": "maybe-later",
+    "name": "Re:Mind",
+    "slug": "remind",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "maybelater",
+    "scheme": "remind",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.maybelater.app",
+      "bundleIdentifier": "com.remind.app",
       "infoPlist": {
         "UIBackgroundModes": ["remote-notification"]
       }
@@ -19,7 +19,7 @@
         "backgroundColor": "#FBF9F6",
         "foregroundImage": "./assets/images/android-icon-foreground.png"
       },
-      "package": "com.maybelater.app",
+      "package": "com.remind.app",
       "predictiveBackGestureEnabled": false
     },
     "plugins": [
@@ -30,7 +30,7 @@
         "expo-share-intent",
         {
           "ios": {
-            "AppGroup": "group.com.maybelater.app"
+            "AppGroup": "group.com.remind.app"
           }
         }
       ],

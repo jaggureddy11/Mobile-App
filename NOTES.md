@@ -1,4 +1,4 @@
-# Maybe Later — Architecture & Design Decisions (NOTES.md)
+# Re:Mind — Architecture & Design Decisions (NOTES.md)
 
 ## Design vs. Docs Conflict Log & Resolutions
 

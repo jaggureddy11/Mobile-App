@@ -17,7 +17,7 @@ export function detectItemTypeFromUrl(url: string): ItemType {
 
 /**
  * Hook to listen for inbound shares from system Share Sheet
- * (links, text, reels) when user shares into "Maybe Later"
+ * (links, text, reels) when user shares into "Re:Mind"
  */
 export function useListenShareIntent() {
   const { hasShareIntent, shareIntent, resetShareIntent } = useShareIntent();

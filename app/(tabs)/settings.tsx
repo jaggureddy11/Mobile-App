@@ -60,7 +60,7 @@ export default function SettingsScreen() {
       const csv = header + rows;
 
       await Share.share({
-        title: 'Maybe Later - Exported Items.csv',
+        title: 'Re:Mind - Exported Items.csv',
         message: csv,
       });
     } catch (err) {
@@ -81,7 +81,7 @@ export default function SettingsScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        <PageHeader title="Settings" categoryTag="MAYBE LATER" showSettingsButton={false} />
+        <PageHeader title="Settings" categoryTag="RE:MIND" showSettingsButton={false} />
 
         <ScrollView
           style={styles.scrollView}
@@ -197,7 +197,7 @@ export default function SettingsScreen() {
             <View style={styles.privacyContent}>
               <Text style={styles.privacyTitle}>Private & Local</Text>
               <Text style={styles.privacyText}>
-                Maybe Later has no servers, accounts, or analytics trackers. Everything stays safe on your device.
+                Re:Mind has no servers, accounts, or analytics trackers. Everything stays safe on your device.
               </Text>
             </View>
           </View>

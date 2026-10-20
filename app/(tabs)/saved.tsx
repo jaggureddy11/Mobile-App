@@ -128,7 +128,7 @@ export default function SavedScreen() {
       <View style={styles.container}>
         <PageHeader
           title={selectedCollection ? selectedCollection.name : 'Your Collection'}
-          categoryTag={selectedCollection ? 'COLLECTION' : 'MAYBE LATER'}
+          categoryTag={selectedCollection ? 'COLLECTION' : 'RE:MIND'}
         />
 
         {/* Top View Mode Switcher (Items vs Collections) */}

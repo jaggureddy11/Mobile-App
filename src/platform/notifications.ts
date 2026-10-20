@@ -45,7 +45,7 @@ export async function scheduleNudgeNotification(settings: UserSettings): Promise
   if (settings.nudge_frequency === 'daily') {
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: 'Maybe Later',
+        title: 'Re:Mind',
         body: 'Have a minute to take a breather? An item is waiting for you.',
         data: { screen: 'today' },
       },
@@ -59,7 +59,7 @@ export async function scheduleNudgeNotification(settings: UserSettings): Promise
     // Weekly on Sunday
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: 'Maybe Later',
+        title: 'Re:Mind',
         body: 'Your calm weekly review: one gentle item to enjoy.',
         data: { screen: 'today' },
       },
