@@ -37,6 +37,7 @@ import { ItemType, MinuteOption, RemindInterval, DEFAULT_ITEM_MINUTES } from '@/
 import { detectItemTypeFromUrl } from '@/platform/useListenShareIntent';
 import { fetchUrlMetadata, UrlMetadata } from '@/platform/metadataScraper';
 import { FEATURES } from '@/config/features';
+import { getStartupMigrationError } from '@/db/database';
 
 const TYPE_OPTIONS: { type: ItemType; label: string; icon: React.ComponentType<{ size: number; color: string }> }[] = [
   { type: 'link', label: 'Link', icon: Link2 },
@@ -167,6 +168,13 @@ export default function AddModal() {
   };
 
   const handleSave = async () => {
+    if (getStartupMigrationError()) {
+      Alert.alert(
+        'Database update in progress',
+        'A database update is pending. Please return to the Today tab and tap Retry.'
+      );
+      return;
+    }
     if (!title.trim() && !url.trim()) return;
 
     setIsSubmitting(true);

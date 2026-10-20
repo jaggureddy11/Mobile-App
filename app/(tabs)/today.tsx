@@ -28,7 +28,7 @@ import { useListenShareIntent } from '@/platform/useListenShareIntent';
 import { isItemEligible, getItemMinutes, areAllPendingItemsYoungerThanHidePeriod } from '@/domain/eligibility';
 import { SnoozeOption } from '@/domain/types';
 import { perfTracker } from '@/utils/perfTracker';
-import { getStartupMigrationError, setStartupMigrationError } from '@/db/database';
+import { getStartupMigrationError, setStartupMigrationError, retryDatabaseInitialization } from '@/db/database';
 
 export default function TodayScreen() {
   const router = useRouter();
@@ -76,11 +76,14 @@ export default function TodayScreen() {
   }, [loadSettings, loadItems]);
 
   const handleRetryMigration = async () => {
-    setStartupMigrationError(null);
-    setMigrationError(null);
-    await loadSettings();
-    await loadItems();
-    setMigrationError(getStartupMigrationError());
+    try {
+      await retryDatabaseInitialization();
+      setMigrationError(null);
+      await loadSettings();
+      await loadItems();
+    } catch {
+      setMigrationError(getStartupMigrationError() || 'Migration retry failed');
+    }
   };
 
   // AppState listener for "Do it" confirmation

@@ -4,6 +4,7 @@ import { useShareIntent } from 'expo-share-intent';
 import { useItemsStore } from '../domain/useItemsStore';
 import { ItemType, DEFAULT_ITEM_MINUTES } from '../domain/types';
 import { itemsRepo } from '../db/itemsRepo';
+import { getStartupMigrationError } from '../db/database';
 import { fetchUrlMetadata } from './metadataScraper';
 
 export function detectItemTypeFromUrl(url: string): ItemType {
@@ -37,6 +38,15 @@ export function useListenShareIntent() {
 
     let isMounted = true;
     const processShare = async () => {
+      if (getStartupMigrationError()) {
+        Alert.alert(
+          'Database Unavailable',
+          'Re:Mind encountered an issue preparing its database. Please open the app and tap Retry loading before saving items.'
+        );
+        resetShareIntent();
+        return;
+      }
+
       const rawText = shareIntent.text || '';
       const webUrl = shareIntent.webUrl || (rawText.startsWith('http') ? rawText : '');
       let title = shareIntent.meta?.title || (webUrl ? (shareIntent.meta?.title || rawText) : rawText);

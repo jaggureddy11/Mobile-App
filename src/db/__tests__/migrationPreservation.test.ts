@@ -1,4 +1,11 @@
-import { initSchema, setTestDatabase, mergeDuplicateItems, getStartupMigrationError } from '../database';
+import {
+  initSchema,
+  setTestDatabase,
+  mergeDuplicateItems,
+  getStartupMigrationError,
+  retryDatabaseInitialization,
+  getDatabase,
+} from '../database';
 
 describe('Database Migration & Data Preservation', () => {
   let itemsTable: any[];
@@ -273,5 +280,31 @@ describe('Database Migration & Data Preservation', () => {
     expect(dupItem.status).toBe('let_go');
     expect(dupItem.merged_into).toBe(keepItem.id);
     expect(dupItem.note).toBe('My personal precious note'); // Untouched! No [Merged into ...] prepended or appended
+  });
+
+  it('fails safely when startupMigrationError is set, and retryDatabaseInitialization re-runs migrations and recovers cleanly', async () => {
+    let failAttempts = 1;
+    const originalExec = mockDb.execAsync;
+    mockDb.execAsync = jest.fn().mockImplementation(async (sql: string) => {
+      if (failAttempts > 0 && sql.includes('idx_items_normalized_url')) {
+        failAttempts--;
+        throw new Error('SIMULATED_TRANSIENT_LOCK_ERROR');
+      }
+      return originalExec(sql);
+    });
+
+    // 1. Initial attempt fails
+    await expect(initSchema(mockDb)).rejects.toThrow('SIMULATED_TRANSIENT_LOCK_ERROR');
+    expect(getStartupMigrationError()).toBe('SIMULATED_TRANSIENT_LOCK_ERROR');
+
+    // 2. All entry points touching database fail safely (getDatabase throws explicit unavailable message)
+    await expect(getDatabase()).rejects.toThrow('Database unavailable: SIMULATED_TRANSIENT_LOCK_ERROR');
+
+    // 3. Retry loading reruns the migrations and resets the error
+    await retryDatabaseInitialization(mockDb);
+    expect(getStartupMigrationError()).toBeNull();
+
+    // 4. getDatabase now returns the db instance and is ready for use
+    expect(await getDatabase()).toBe(mockDb);
   });
 });

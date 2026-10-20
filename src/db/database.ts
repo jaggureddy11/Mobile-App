@@ -17,6 +17,9 @@ export function setStartupMigrationError(err: string | null): void {
 
 export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
   if (dbInstance) {
+    if (startupMigrationError) {
+      throw new Error(`Database unavailable: ${startupMigrationError}`);
+    }
     return dbInstance;
   }
   dbInstance = await SQLite.openDatabaseAsync(DATABASE_NAME);
@@ -25,7 +28,36 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
   } catch (err: any) {
     if (__DEV__) console.warn('getDatabase initSchema caught error:', err?.message || err);
   }
+  if (startupMigrationError) {
+    throw new Error(`Database unavailable: ${startupMigrationError}`);
+  }
   return dbInstance;
+}
+
+/**
+ * Re-runs startup schema creation and numbered migrations.
+ * Resets startupMigrationError on success.
+ */
+export async function retryDatabaseInitialization(customDb?: SQLite.SQLiteDatabase): Promise<void> {
+  startupMigrationError = null;
+  const targetDb = customDb || dbInstance || (await SQLite.openDatabaseAsync(DATABASE_NAME));
+  dbInstance = targetDb;
+  await initSchema(targetDb);
+}
+
+/**
+ * Helper to run migration transactions with an immediate EXCLUSIVE lock.
+ * This prevents concurrent background or share-intent operations from reading or writing
+ * half-migrated schemas while numbered migrations are running.
+ */
+async function runExclusiveTransaction(
+  db: SQLite.SQLiteDatabase,
+  action: () => Promise<void>
+): Promise<void> {
+  if (typeof (db as any).withExclusiveTransactionAsync === 'function') {
+    return await (db as any).withExclusiveTransactionAsync(action);
+  }
+  return await db.withTransactionAsync(action);
 }
 
 export async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
@@ -192,7 +224,7 @@ export async function detectAndReportUrlDuplicates(db: SQLite.SQLiteDatabase): P
 
 export async function migrateUrlIndex(db: SQLite.SQLiteDatabase): Promise<void> {
   try {
-    await db.withTransactionAsync(async () => {
+    await runExclusiveTransaction(db, async () => {
       // 1. Backfill existing items with normalized_url
       await backfillNormalizedUrls(db);
 
@@ -249,7 +281,7 @@ export async function migrateMergedIntoColumn(db: SQLite.SQLiteDatabase): Promis
     const tableInfo = await db.getAllAsync<{ name: string }>('PRAGMA table_info(items);');
     const hasCol = tableInfo.some((c) => c.name === 'merged_into');
     if (!hasCol) {
-      await db.withTransactionAsync(async () => {
+      await runExclusiveTransaction(db, async () => {
         await db.execAsync('ALTER TABLE items ADD COLUMN merged_into TEXT;');
       });
     }
@@ -272,7 +304,7 @@ export async function migratePurgePassword(db: SQLite.SQLiteDatabase): Promise<v
     } catch {}
 
     if (hasCol || hasRow) {
-      await db.withTransactionAsync(async () => {
+      await runExclusiveTransaction(db, async () => {
         if (hasCol) {
           await db.execAsync('UPDATE settings SET user_password = NULL;');
         }
