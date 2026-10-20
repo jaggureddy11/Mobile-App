@@ -41,3 +41,7 @@ example
 # generated native folders
 /ios
 /android
+
+# local design previews
+assets/_preview/
+
