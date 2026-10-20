@@ -7,10 +7,16 @@ import { fetchUrlMetadata } from './metadataScraper';
 export function detectItemTypeFromUrl(url: string): ItemType {
   const lower = url.toLowerCase();
   if (
-    lower.includes('instagram.com/reel') ||
+    /instagram\.com\/reel\/[a-zA-Z0-9_-]+/i.test(lower) ||
+    /instagram\.com\/reels\/[a-zA-Z0-9_-]+/i.test(lower) && !lower.includes('/audio/') ||
+    lower.includes('instagram.com/reel/') ||
     lower.includes('tiktok.com') ||
     lower.includes('youtube.com/shorts')
   ) {
+    // Exclude general non-video tabs like instagram.com/reels/ (no specific reel) or /audio/
+    if (lower.includes('instagram.com/reels/') && (lower.endsWith('/reels/') || lower.includes('/audio/'))) {
+      return 'link';
+    }
     return 'reel';
   }
   return 'link';

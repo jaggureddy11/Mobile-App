@@ -1,6 +1,7 @@
 import { Item } from './types';
 
-const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+export const PURGE_THRESHOLD_DAYS = 30;
+export const THIRTY_DAYS_MS = PURGE_THRESHOLD_DAYS * 24 * 60 * 60 * 1000;
 
 /**
  * Filter out items that should be purged permanently:

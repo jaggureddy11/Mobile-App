@@ -12,6 +12,10 @@ function decodeHtmlEntities(str: string): string {
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&mdash;/g, '—')
+    .replace(/&ndash;/g, '–')
+    .replace(/&hellip;/g, '…')
     .replace(/&nbsp;/g, ' ')
     .trim();
 }
@@ -58,8 +62,15 @@ export async function fetchUrlMetadata(rawUrl: string): Promise<UrlMetadata | nu
     const ogImageMatch = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ||
       html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
     let imageUrl = ogImageMatch ? ogImageMatch[1].trim() : undefined;
-    if (imageUrl && imageUrl.startsWith('//')) {
-      imageUrl = 'https:' + imageUrl;
+    if (imageUrl) {
+      if (imageUrl.startsWith('//')) {
+        imageUrl = 'https:' + imageUrl;
+      } else if (imageUrl.startsWith('/')) {
+        try {
+          const origin = new URL(trimmed).origin;
+          imageUrl = origin + imageUrl;
+        } catch {}
+      }
     }
 
     // 3. Description extraction
