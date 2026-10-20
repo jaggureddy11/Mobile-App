@@ -94,7 +94,7 @@ export async function detectAndReportUrlDuplicates(db: SQLite.SQLiteDatabase): P
     const rows = await db.getAllAsync<{ url: string; count: number }>(`
       SELECT url, COUNT(*) as count
       FROM items
-      WHERE url IS NOT NULL AND TRIM(url) != ''
+      WHERE url IS NOT NULL AND TRIM(url) != '' AND status = 'pending'
       GROUP BY url
       HAVING count > 1;
     `);
@@ -113,7 +113,7 @@ export async function migrateUrlIndex(db: SQLite.SQLiteDatabase): Promise<void> 
       await db.execAsync(`
         CREATE UNIQUE INDEX IF NOT EXISTS idx_items_unique_url
         ON items(url)
-        WHERE url IS NOT NULL AND TRIM(url) != '';
+        WHERE url IS NOT NULL AND TRIM(url) != '' AND status = 'pending';
       `);
     } else {
       console.warn('Skipping unique URL index creation due to existing duplicates; application-level deduplication active.');

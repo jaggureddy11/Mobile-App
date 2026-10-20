@@ -77,7 +77,7 @@ export const itemsRepo = {
 
     const db = await getDatabase();
     const rows = await db.getAllAsync<any>(
-      "SELECT * FROM items WHERE url IS NOT NULL AND status != 'let_go'"
+      "SELECT * FROM items WHERE url IS NOT NULL AND status = 'pending'"
     );
     for (const row of rows) {
       if (normalizeUrl(row.url) === normalizedTarget) {

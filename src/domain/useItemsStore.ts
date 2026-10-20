@@ -58,15 +58,22 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
         ? items.filter((i) => !expiredIds.includes(i.id))
         : items;
 
+      const previousActive = get().activeItem;
+      const previousEventId = get().currentSurfaceEventId;
+
       const newActive = activeItem && freshItems.some((i) => i.id === activeItem.id && i.status === 'pending')
         ? activeItem
         : pickResurfacedItem(freshItems, selectedMinutes, null, { allowFallback: false });
 
-      let eventId: string | null = null;
+      let eventId: string | null = previousEventId;
       if (newActive) {
-        try {
-          eventId = await itemsRepo.recordSurfaceEvent(newActive.id, selectedMinutes);
-        } catch {}
+        if (!previousActive || newActive.id !== previousActive.id || !previousEventId) {
+          try {
+            eventId = await itemsRepo.recordSurfaceEvent(newActive.id, selectedMinutes);
+          } catch {}
+        }
+      } else {
+        eventId = null;
       }
 
       set({

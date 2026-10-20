@@ -25,7 +25,7 @@ import { colors, typography, spacing, radii, shadows } from '@/theme';
 import { useItemsStore } from '@/domain/useItemsStore';
 import { useSettingsStore } from '@/domain/useSettingsStore';
 import { useListenShareIntent } from '@/platform/useListenShareIntent';
-import { isItemEligible, getItemMinutes } from '@/domain/eligibility';
+import { isItemEligible, getItemMinutes, areAllPendingItemsYoungerThanHidePeriod } from '@/domain/eligibility';
 import { SnoozeOption } from '@/domain/types';
 
 export default function TodayScreen() {
@@ -69,15 +69,15 @@ export default function TodayScreen() {
   }, [loadSettings, loadItems]);
 
   // AppState listener for "Do it" confirmation
+  // Show ONLY on transition from 'background' to 'active' (not from 'inactive'), and only when pendingConfirmItemId is set
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState) => {
       if (
-        appState.current?.match(/inactive|background/) &&
-        nextAppState === 'active'
+        appState.current === 'background' &&
+        nextAppState === 'active' &&
+        pendingConfirmItemId
       ) {
-        if (pendingConfirmItemId) {
-          setShowConfirmModal(true);
-        }
+        setShowConfirmModal(true);
       }
       appState.current = nextAppState;
     });
@@ -234,6 +234,17 @@ export default function TodayScreen() {
                     <Plus size={18} color={colors.background} style={{ marginRight: 6 }} />
                     <Text style={styles.emptyActionText}>Save an item</Text>
                   </TouchableOpacity>
+                </View>
+              ) : areAllPendingItemsYoungerThanHidePeriod(items, now) ? (
+                /* Empty State 4: First-day experience */
+                <View style={styles.emptyStateCard}>
+                  <View style={styles.emptyIconCircle}>
+                    <Sparkles size={32} color={colors.accent} />
+                  </View>
+                  <Text style={styles.emptyTitle}>Your first item will be ready tomorrow</Text>
+                  <Text style={styles.emptySubtitle}>
+                    Saved items rest for a day, then come back when you have a minute.
+                  </Text>
                 </View>
               ) : eligibleItems.length === 0 ? (
                 /* Empty State 3: All caught up */
