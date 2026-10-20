@@ -3,6 +3,15 @@ import { itemsRepo } from '../../db/itemsRepo';
 import { Item } from '../types';
 
 jest.mock('../../db/itemsRepo');
+jest.mock('../../db/settingsRepo', () => ({
+  settingsRepo: {
+    getSettings: jest.fn().mockResolvedValue({ nudge_enabled: true }),
+  },
+}));
+jest.mock('../../platform/notifications', () => ({
+  requestNotificationPermission: jest.fn().mockResolvedValue(true),
+  scheduleNudgeNotification: jest.fn().mockResolvedValue(undefined),
+}));
 
 const mockItems: Item[] = [
   {
@@ -103,5 +112,37 @@ describe('Domain: useItemsStore', () => {
     expect(itemsRepo.restore).toHaveBeenCalledWith('1');
     expect(useItemsStore.getState().undoItem).toBeNull();
     expect(useItemsStore.getState().activeItem?.id).toBe('1');
+  });
+
+  it('requests notification permission and schedules nudges on first save', async () => {
+    useItemsStore.setState({ items: [] });
+
+    await useItemsStore.getState().addItem({
+      type: 'link',
+      title: 'First Save',
+      minutes: 15,
+    });
+
+    const { requestNotificationPermission, scheduleNudgeNotification } = require('../../platform/notifications');
+    expect(requestNotificationPermission).toHaveBeenCalledTimes(1);
+    // Allow promise tick
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(scheduleNudgeNotification).toHaveBeenCalledTimes(1);
+  });
+
+  it('does NOT request notification permission on subsequent save if items already exist', async () => {
+    const { requestNotificationPermission } = require('../../platform/notifications');
+    requestNotificationPermission.mockClear();
+
+    useItemsStore.setState({ items: [...mockItems] });
+
+    await useItemsStore.getState().addItem({
+      type: 'task',
+      title: 'Second Save',
+      minutes: 5,
+    });
+
+    expect(requestNotificationPermission).not.toHaveBeenCalled();
   });
 });

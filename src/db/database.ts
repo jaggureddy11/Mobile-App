@@ -46,6 +46,7 @@ export async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_items_collection ON items(collection_id);
     CREATE INDEX IF NOT EXISTS idx_items_snoozed ON items(snoozed_until);
     CREATE INDEX IF NOT EXISTS idx_items_times_surfaced ON items(times_surfaced);
+    CREATE INDEX IF NOT EXISTS idx_items_resurface_eval ON items(status, minutes, times_surfaced, created_at);
 
     CREATE TABLE IF NOT EXISTS surface_events (
       id TEXT PRIMARY KEY NOT NULL,

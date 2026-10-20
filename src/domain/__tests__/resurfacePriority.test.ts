@@ -95,4 +95,69 @@ describe('Resurface Algorithm: Priority Ordering & Fallback Behavior', () => {
     const pickedFallback = pickResurfacedItem([thirtyMinItem], 5, null, { allowFallback: true });
     expect(pickedFallback?.id).toBe('item-30');
   });
+
+  it('returns null when all items are snoozed into the future', () => {
+    const futureDate = new Date(Date.now() + 86400000).toISOString();
+    const snoozedItem: Item = {
+      id: 'item-snoozed',
+      type: 'link',
+      title: 'Snoozed Item',
+      minutes: 5,
+      status: 'pending',
+      created_at: '2026-01-01T10:00:00Z',
+      snoozed_until: futureDate,
+    };
+
+    const picked = pickResurfacedItem([snoozedItem], 5);
+    expect(picked).toBeNull();
+  });
+
+  it('returns null when all items are done or let_go', () => {
+    const doneItem: Item = {
+      id: 'item-done',
+      type: 'link',
+      title: 'Done Item',
+      minutes: 5,
+      status: 'done',
+      created_at: '2026-01-01T10:00:00Z',
+    };
+    const letGoItem: Item = {
+      id: 'item-letgo',
+      type: 'task',
+      title: 'Let Go Item',
+      minutes: 5,
+      status: 'let_go',
+      created_at: '2026-01-01T10:00:00Z',
+    };
+
+    const picked = pickResurfacedItem([doneItem, letGoItem], 5);
+    expect(picked).toBeNull();
+  });
+
+  it('tie-breaker deterministic selection when times_surfaced, resurfaced_at, and created_at are identical', () => {
+    const item1: Item = {
+      id: 'item-1',
+      type: 'link',
+      title: 'Identical 1',
+      minutes: 5,
+      status: 'pending',
+      times_surfaced: 0,
+      resurfaced_at: null,
+      created_at: '2026-01-01T10:00:00Z',
+    };
+    const item2: Item = {
+      id: 'item-2',
+      type: 'link',
+      title: 'Identical 2',
+      minutes: 5,
+      status: 'pending',
+      times_surfaced: 0,
+      resurfaced_at: null,
+      created_at: '2026-01-01T10:00:00Z',
+    };
+
+    const picked = pickResurfacedItem([item1, item2], 5);
+    expect(picked).not.toBeNull();
+    expect(['item-1', 'item-2']).toContain(picked?.id);
+  });
 });
