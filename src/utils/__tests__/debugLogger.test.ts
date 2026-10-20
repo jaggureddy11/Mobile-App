@@ -117,4 +117,58 @@ describe('debugLogger', () => {
     expect(parsed.errors).toHaveLength(1);
     expect(parsed.errors[0].error_name).toBe('RangeError');
   });
+
+  it('in-memory buffer remains source-of-truth when persist() throws; error is swallowed; subsequent persist succeeds', async () => {
+    const { getDatabase } = require('../../db/database');
+
+    // Seed the buffer directly — avoids the fire-and-forget persist() inside
+    // logError() from consuming mock calls before the explicit test assertions.
+    (debugLogger as any).logs = [
+      { timestamp: new Date().toISOString(), screen: 'TodayScreen', error_name: 'TypeError' },
+      { timestamp: new Date().toISOString(), screen: 'SavedScreen', error_name: 'RangeError' },
+    ];
+    expect(debugLogger.getLogs()).toHaveLength(2);
+
+    // First getDatabase() call → db.runAsync throws (simulates locked DB).
+    // Second call → db.runAsync succeeds and writes to the mock store.
+    let getDbCallCount = 0;
+    (getDatabase as jest.Mock).mockImplementation(async () => {
+      getDbCallCount++;
+      if (getDbCallCount === 1) {
+        return {
+          getFirstAsync: jest.fn().mockResolvedValue(null),
+          runAsync: jest.fn().mockRejectedValue(new Error('disk I/O error')),
+        };
+      }
+      return {
+        getFirstAsync: jest.fn().mockResolvedValue(null),
+        runAsync: jest.fn().mockImplementation(async (sql: string, params?: any[]) => {
+          if (sql.includes('INSERT') && params) {
+            mockSettingsStore['debug_logs'] = params[0];
+          }
+          return undefined;
+        }),
+      };
+    });
+
+    // First persist() — db.runAsync rejects, catch swallows it, resolves undefined.
+    await expect(debugLogger.persist()).resolves.toBeUndefined();
+
+    // In-memory buffer must be unaffected by the failed write.
+    expect(debugLogger.getLogs()).toHaveLength(2);
+    expect(debugLogger.getLogs()[0].error_name).toBe('TypeError');
+    expect(debugLogger.getLogs()[1].error_name).toBe('RangeError');
+
+    // Nothing persisted to the store after the first (failed) call.
+    expect(mockSettingsStore['debug_logs']).toBeUndefined();
+
+    // After DB recovers, second persist() writes successfully.
+    await debugLogger.persist();
+    expect(mockSettingsStore['debug_logs']).toBeDefined();
+    expect(mockSettingsStore['debug_logs']).toContain('TypeError');
+    expect(mockSettingsStore['debug_logs']).toContain('RangeError');
+
+    // In-memory buffer is still intact after the successful persist.
+    expect(debugLogger.getLogs()).toHaveLength(2);
+  });
 });
