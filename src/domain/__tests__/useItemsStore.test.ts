@@ -134,6 +134,31 @@ describe('Domain: useItemsStore', () => {
     expect(scheduleNudgeNotification).toHaveBeenCalledTimes(1);
   });
 
+  it('saves notification_prompted when permission is DENIED on first save', async () => {
+    const { requestNotificationPermission, scheduleNudgeNotification } = require('../../platform/notifications');
+    const { settingsRepo } = require('../../db/settingsRepo');
+    requestNotificationPermission.mockClear();
+    scheduleNudgeNotification.mockClear();
+    (settingsRepo.setNotificationPrompted as jest.Mock).mockClear();
+    (settingsRepo.isNotificationPrompted as jest.Mock).mockResolvedValue(false);
+    (itemsRepo.getCount as jest.Mock).mockResolvedValue(0);
+    (requestNotificationPermission as jest.Mock).mockResolvedValue(false); // Denied
+
+    useItemsStore.setState({ items: [] });
+
+    await useItemsStore.getState().addItem({
+      type: 'link',
+      title: 'Denied Save Item',
+      minutes: 15,
+    });
+
+    expect(requestNotificationPermission).toHaveBeenCalledTimes(1);
+    expect(settingsRepo.setNotificationPrompted).toHaveBeenCalledWith(true);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(scheduleNudgeNotification).not.toHaveBeenCalled();
+  });
+
   it('does NOT request notification permission on subsequent save if items already exist', async () => {
     const { requestNotificationPermission } = require('../../platform/notifications');
     requestNotificationPermission.mockClear();

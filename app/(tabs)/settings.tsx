@@ -26,6 +26,7 @@ import {
   Cloud,
   RefreshCw,
   CheckCircle2,
+  FileText,
 } from 'lucide-react-native';
 import { PageHeader } from '@/components';
 import { colors, typography, spacing, radii, shadows } from '@/theme';
@@ -34,6 +35,7 @@ import { useItemsStore } from '@/domain/useItemsStore';
 import { NudgeFrequency } from '@/domain/types';
 import { syncService } from '@/platform/syncService';
 import { FEATURES } from '@/config/features';
+import { debugLogger } from '@/utils/debugLogger';
 
 export default function SettingsScreen() {
   const { settings, updateSettings } = useSettingsStore();
@@ -114,6 +116,23 @@ export default function SettingsScreen() {
         ? `Cleaned up ${count} items that were let go over 30 days ago.`
         : 'No expired items found. All let-go items under 30 days are safe.'
     );
+  };
+
+  const handleCopyDebugInfo = async () => {
+    try {
+      const debugInfo = debugLogger.formatDebugInfo();
+      const logs = debugLogger.getLogs();
+      await Share.share({
+        message: debugInfo,
+        title: 'Re:Mind Debug Info',
+      });
+      Alert.alert(
+        'Debug Info',
+        `Exported ${logs.length} error entries. Contains only error names, screens, and timestamps. No saved items, URLs, or notes are included.`
+      );
+    } catch (err: any) {
+      Alert.alert('Unable to copy debug info', err?.message || 'Unknown error');
+    }
   };
 
   const formatLastSynced = () => {
@@ -309,6 +328,21 @@ export default function SettingsScreen() {
               <View style={styles.settingTextContainer}>
                 <Text style={styles.settingTitle}>Auto-purge status</Text>
                 <Text style={styles.settingSubtitle}>Clean let-go items older than 30 days</Text>
+              </View>
+              <ChevronRight size={18} color={colors.accent} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.settingRow}
+              onPress={handleCopyDebugInfo}
+              activeOpacity={0.7}
+            >
+              <View style={styles.settingIconBox}>
+                <FileText size={20} color={colors.accent} />
+              </View>
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingTitle}>Copy debug info</Text>
+                <Text style={styles.settingSubtitle}>Local error log (last 50, zero URLs/titles)</Text>
               </View>
               <ChevronRight size={18} color={colors.accent} />
             </TouchableOpacity>

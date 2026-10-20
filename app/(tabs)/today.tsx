@@ -28,6 +28,7 @@ import { useListenShareIntent } from '@/platform/useListenShareIntent';
 import { isItemEligible, getItemMinutes, areAllPendingItemsYoungerThanHidePeriod } from '@/domain/eligibility';
 import { SnoozeOption } from '@/domain/types';
 import { perfTracker } from '@/utils/perfTracker';
+import { getStartupMigrationError, setStartupMigrationError } from '@/db/database';
 
 export default function TodayScreen() {
   const router = useRouter();
@@ -62,6 +63,7 @@ export default function TodayScreen() {
 
   // State for "Later" snooze modal
   const [showSnoozeModal, setShowSnoozeModal] = useState<boolean>(false);
+  const [migrationError, setMigrationError] = useState<string | null>(getStartupMigrationError());
 
   // Initial load
   useEffect(() => {
@@ -69,8 +71,17 @@ export default function TodayScreen() {
     loadSettings();
     loadItems().then(() => {
       perfTracker.measure('cold_start_to_today', 'cold_start_begin');
+      setMigrationError(getStartupMigrationError());
     });
   }, [loadSettings, loadItems]);
+
+  const handleRetryMigration = async () => {
+    setStartupMigrationError(null);
+    setMigrationError(null);
+    await loadSettings();
+    await loadItems();
+    setMigrationError(getStartupMigrationError());
+  };
 
   // AppState listener for "Do it" confirmation
   // Show ONLY on transition from 'background' to 'active' (not from 'inactive'), and only when pendingConfirmItemId is set
@@ -172,7 +183,24 @@ export default function TodayScreen() {
       <View style={styles.container}>
         <PageHeader />
 
-        {isLoading ? (
+        {migrationError ? (
+          <View style={styles.errorContainer}>
+            <View style={styles.emptyIconCircle}>
+              <HelpCircle size={32} color={colors.accent} />
+            </View>
+            <Text style={styles.emptyTitle}>Database Update Notice</Text>
+            <Text style={styles.emptySubtitle}>
+              A database update encountered a recoverable issue. Your saved data remains safe on your device.
+            </Text>
+            <TouchableOpacity
+              style={styles.emptyActionButton}
+              onPress={handleRetryMigration}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.emptyActionText}>Retry loading</Text>
+            </TouchableOpacity>
+          </View>
+        ) : isLoading ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={colors.accent} />
           </View>
@@ -478,6 +506,12 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  errorContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xxl,
   },
   scrollView: {
     flex: 1,

@@ -1,97 +1,125 @@
 import * as SQLite from 'expo-sqlite';
 import { normalizeUrl } from '../domain/urlUtils';
+import { debugLogger } from '../utils/debugLogger';
 
 export const DATABASE_NAME = 'maybe_later.db';
 
 let dbInstance: SQLite.SQLiteDatabase | null = null;
+let startupMigrationError: string | null = null;
+
+export function getStartupMigrationError(): string | null {
+  return startupMigrationError;
+}
+
+export function setStartupMigrationError(err: string | null): void {
+  startupMigrationError = err;
+}
 
 export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
   if (dbInstance) {
     return dbInstance;
   }
   dbInstance = await SQLite.openDatabaseAsync(DATABASE_NAME);
-  await initSchema(dbInstance);
+  try {
+    await initSchema(dbInstance);
+  } catch (err: any) {
+    if (__DEV__) console.warn('getDatabase initSchema caught error:', err?.message || err);
+  }
   return dbInstance;
 }
 
 export async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
-  // PRAGMA journal_mode = WAL for speed and reliability
-  await db.execAsync(`
-    PRAGMA journal_mode = WAL;
+  try {
+    // PRAGMA journal_mode = WAL for speed and reliability
+    await db.execAsync(`
+      PRAGMA journal_mode = WAL;
 
-    CREATE TABLE IF NOT EXISTS items (
-      id TEXT PRIMARY KEY NOT NULL,
-      type TEXT NOT NULL,
-      title TEXT NOT NULL,
-      url TEXT,
-      note TEXT,
-      minutes INTEGER NOT NULL,
-      status TEXT NOT NULL DEFAULT 'pending',
-      created_at TEXT NOT NULL,
-      done_at TEXT,
-      let_go_at TEXT,
-      resurfaced_at TEXT,
-      snoozed_until TEXT,
-      times_surfaced INTEGER DEFAULT 0,
-      collection_id TEXT,
-      tags TEXT,
-      remind_interval TEXT,
-      remind_at TEXT,
-      image_url TEXT,
-      site_name TEXT,
-      normalized_url TEXT
-    );
+      CREATE TABLE IF NOT EXISTS items (
+        id TEXT PRIMARY KEY NOT NULL,
+        type TEXT NOT NULL,
+        title TEXT NOT NULL,
+        url TEXT,
+        note TEXT,
+        minutes INTEGER NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending',
+        created_at TEXT NOT NULL,
+        done_at TEXT,
+        let_go_at TEXT,
+        resurfaced_at TEXT,
+        snoozed_until TEXT,
+        times_surfaced INTEGER DEFAULT 0,
+        collection_id TEXT,
+        tags TEXT,
+        remind_interval TEXT,
+        remind_at TEXT,
+        image_url TEXT,
+        site_name TEXT,
+        normalized_url TEXT,
+        merged_into TEXT
+      );
 
-    CREATE INDEX IF NOT EXISTS idx_items_status ON items(status);
-    CREATE INDEX IF NOT EXISTS idx_items_minutes ON items(minutes);
-    CREATE INDEX IF NOT EXISTS idx_items_created_at ON items(created_at);
-    CREATE INDEX IF NOT EXISTS idx_items_collection ON items(collection_id);
-    CREATE INDEX IF NOT EXISTS idx_items_snoozed ON items(snoozed_until);
-    CREATE INDEX IF NOT EXISTS idx_items_times_surfaced ON items(times_surfaced);
-    CREATE INDEX IF NOT EXISTS idx_items_resurface_eval ON items(status, minutes, times_surfaced, created_at);
-    CREATE INDEX IF NOT EXISTS idx_items_normalized_url ON items(normalized_url);
+      CREATE INDEX IF NOT EXISTS idx_items_status ON items(status);
+      CREATE INDEX IF NOT EXISTS idx_items_minutes ON items(minutes);
+      CREATE INDEX IF NOT EXISTS idx_items_created_at ON items(created_at);
+      CREATE INDEX IF NOT EXISTS idx_items_collection ON items(collection_id);
+      CREATE INDEX IF NOT EXISTS idx_items_snoozed ON items(snoozed_until);
+      CREATE INDEX IF NOT EXISTS idx_items_times_surfaced ON items(times_surfaced);
+      CREATE INDEX IF NOT EXISTS idx_items_resurface_eval ON items(status, minutes, times_surfaced, created_at);
+      CREATE INDEX IF NOT EXISTS idx_items_normalized_url ON items(normalized_url);
 
-    CREATE TABLE IF NOT EXISTS surface_events (
-      id TEXT PRIMARY KEY NOT NULL,
-      item_id TEXT NOT NULL,
-      shown_at TEXT NOT NULL,
-      chip_minutes INTEGER NOT NULL,
-      action TEXT,
-      acted_at TEXT
-    );
+      CREATE TABLE IF NOT EXISTS surface_events (
+        id TEXT PRIMARY KEY NOT NULL,
+        item_id TEXT NOT NULL,
+        shown_at TEXT NOT NULL,
+        chip_minutes INTEGER NOT NULL,
+        action TEXT,
+        acted_at TEXT
+      );
 
-    CREATE INDEX IF NOT EXISTS idx_surface_events_item ON surface_events(item_id);
-    CREATE INDEX IF NOT EXISTS idx_surface_events_shown ON surface_events(shown_at);
+      CREATE INDEX IF NOT EXISTS idx_surface_events_item ON surface_events(item_id);
+      CREATE INDEX IF NOT EXISTS idx_surface_events_shown ON surface_events(shown_at);
 
-    CREATE TABLE IF NOT EXISTS collections (
-      id TEXT PRIMARY KEY NOT NULL,
-      name TEXT NOT NULL,
-      color TEXT,
-      created_at TEXT NOT NULL
-    );
+      CREATE TABLE IF NOT EXISTS collections (
+        id TEXT PRIMARY KEY NOT NULL,
+        name TEXT NOT NULL,
+        color TEXT,
+        created_at TEXT NOT NULL
+      );
 
-    CREATE TABLE IF NOT EXISTS settings (
-      key TEXT PRIMARY KEY NOT NULL,
-      value TEXT NOT NULL
-    );
-  `);
+      CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY NOT NULL,
+        value TEXT NOT NULL
+      );
+    `);
 
-  // Safe runtime migrations for existing databases
-  try { await db.execAsync('ALTER TABLE items ADD COLUMN collection_id TEXT;'); } catch {}
-  try { await db.execAsync('ALTER TABLE items ADD COLUMN tags TEXT;'); } catch {}
-  try { await db.execAsync('ALTER TABLE items ADD COLUMN remind_interval TEXT;'); } catch {}
-  try { await db.execAsync('ALTER TABLE items ADD COLUMN remind_at TEXT;'); } catch {}
-  try { await db.execAsync('ALTER TABLE items ADD COLUMN image_url TEXT;'); } catch {}
-  try { await db.execAsync('ALTER TABLE items ADD COLUMN site_name TEXT;'); } catch {}
-  try { await db.execAsync('ALTER TABLE items ADD COLUMN snoozed_until TEXT;'); } catch {}
-  try { await db.execAsync('ALTER TABLE items ADD COLUMN times_surfaced INTEGER DEFAULT 0;'); } catch {}
-  try { await db.execAsync('ALTER TABLE items ADD COLUMN normalized_url TEXT;'); } catch {}
+    // Safe runtime migrations for existing databases
+    try { await db.execAsync('ALTER TABLE items ADD COLUMN collection_id TEXT;'); } catch {}
+    try { await db.execAsync('ALTER TABLE items ADD COLUMN tags TEXT;'); } catch {}
+    try { await db.execAsync('ALTER TABLE items ADD COLUMN remind_interval TEXT;'); } catch {}
+    try { await db.execAsync('ALTER TABLE items ADD COLUMN remind_at TEXT;'); } catch {}
+    try { await db.execAsync('ALTER TABLE items ADD COLUMN image_url TEXT;'); } catch {}
+    try { await db.execAsync('ALTER TABLE items ADD COLUMN site_name TEXT;'); } catch {}
+    try { await db.execAsync('ALTER TABLE items ADD COLUMN snoozed_until TEXT;'); } catch {}
+    try { await db.execAsync('ALTER TABLE items ADD COLUMN times_surfaced INTEGER DEFAULT 0;'); } catch {}
+    try { await db.execAsync('ALTER TABLE items ADD COLUMN normalized_url TEXT;'); } catch {}
+    try { await db.execAsync('ALTER TABLE items ADD COLUMN merged_into TEXT;'); } catch {}
 
-  // Numbered Migration 001: Purge user_password data and rebuild settings table without column
-  await migratePurgePassword(db);
+    // Numbered Migration 001: Purge user_password data and rebuild settings table without column
+    await migratePurgePassword(db);
 
-  // Numbered Migration 002: Backfill normalized_url, detect duplicate groups, and create indexed lookup / partial unique index
-  await migrateUrlIndex(db);
+    // Numbered Migration 002: Backfill normalized_url, detect duplicate groups, and create indexed lookup / partial unique index
+    await migrateUrlIndex(db);
+
+    // Numbered Migration 003: Add merged_into column for duplicates
+    await migrateMergedIntoColumn(db);
+
+    setStartupMigrationError(null);
+  } catch (err: any) {
+    const errMsg = err?.message || String(err);
+    setStartupMigrationError(errMsg);
+    debugLogger.logError('startup_migrations', err);
+    throw err;
+  }
 }
 
 export interface DuplicateUrlGroup {
@@ -164,33 +192,37 @@ export async function detectAndReportUrlDuplicates(db: SQLite.SQLiteDatabase): P
 
 export async function migrateUrlIndex(db: SQLite.SQLiteDatabase): Promise<void> {
   try {
-    // 1. Backfill existing items with normalized_url
-    await backfillNormalizedUrls(db);
+    await db.withTransactionAsync(async () => {
+      // 1. Backfill existing items with normalized_url
+      await backfillNormalizedUrls(db);
 
-    // 2. Ensure general lookup index exists on normalized_url
-    await db.execAsync('CREATE INDEX IF NOT EXISTS idx_items_normalized_url ON items(normalized_url);');
+      // 2. Ensure general lookup index exists on normalized_url
+      await db.execAsync('CREATE INDEX IF NOT EXISTS idx_items_normalized_url ON items(normalized_url);');
 
-    // 3. Check for duplicate groups
-    const duplicateGroups = await detectAndReportNormalizedUrlDuplicates(db);
+      // 3. Check for duplicate groups
+      const duplicateGroups = await detectAndReportNormalizedUrlDuplicates(db);
 
-    if (duplicateGroups.length === 0) {
-      await db.execAsync(`
-        CREATE UNIQUE INDEX IF NOT EXISTS idx_items_unique_url
-        ON items(normalized_url)
-        WHERE normalized_url IS NOT NULL AND TRIM(normalized_url) != '' AND status = 'pending';
-      `);
-    } else {
-      console.warn(
-        `[Duplicate Detection] Skipping unique index creation due to ${duplicateGroups.length} existing duplicate group(s). Application-level deduplication remains active.`
-      );
-    }
+      if (duplicateGroups.length === 0) {
+        await db.execAsync(`
+          CREATE UNIQUE INDEX IF NOT EXISTS idx_items_unique_url
+          ON items(normalized_url)
+          WHERE normalized_url IS NOT NULL AND TRIM(normalized_url) != '' AND status = 'pending';
+        `);
+      } else {
+        console.warn(
+          `[Duplicate Detection] Skipping unique index creation due to ${duplicateGroups.length} existing duplicate group(s). Application-level deduplication remains active.`
+        );
+      }
+    });
   } catch (err: any) {
     if (__DEV__) console.warn('URL index migration warning:', err?.message || err);
+    throw err;
   }
 }
 
 /**
- * Merge option helper for duplicates (requires user approval to call)
+ * Merge option helper for duplicates (requires user approval to call).
+ * Uses dedicated merged_into column and never modifies the user's note field.
  */
 export async function mergeDuplicateItems(
   db: SQLite.SQLiteDatabase,
@@ -201,12 +233,30 @@ export async function mergeDuplicateItems(
     for (const dupId of duplicateIds) {
       if (dupId !== keepId) {
         await db.runAsync(
-          "UPDATE items SET status = 'let_go', let_go_at = ?, note = COALESCE(note || ' ', '') || '[Merged into ' || ? || ']' WHERE id = ?",
+          "UPDATE items SET status = 'let_go', let_go_at = ?, merged_into = ? WHERE id = ?",
           [new Date().toISOString(), keepId, dupId]
         );
       }
     }
   });
+}
+
+/**
+ * Numbered Migration 003: Add merged_into column for duplicates.
+ */
+export async function migrateMergedIntoColumn(db: SQLite.SQLiteDatabase): Promise<void> {
+  try {
+    const tableInfo = await db.getAllAsync<{ name: string }>('PRAGMA table_info(items);');
+    const hasCol = tableInfo.some((c) => c.name === 'merged_into');
+    if (!hasCol) {
+      await db.withTransactionAsync(async () => {
+        await db.execAsync('ALTER TABLE items ADD COLUMN merged_into TEXT;');
+      });
+    }
+  } catch (err: any) {
+    if (__DEV__) console.warn('Merged into column migration warning:', err?.message || err);
+    throw err;
+  }
 }
 
 export async function migratePurgePassword(db: SQLite.SQLiteDatabase): Promise<void> {
@@ -222,26 +272,29 @@ export async function migratePurgePassword(db: SQLite.SQLiteDatabase): Promise<v
     } catch {}
 
     if (hasCol || hasRow) {
-      if (hasCol) {
-        await db.execAsync('UPDATE settings SET user_password = NULL;');
-      }
-      if (hasRow) {
-        await db.execAsync("UPDATE settings SET value = '' WHERE key = 'user_password';");
-        await db.execAsync("DELETE FROM settings WHERE key = 'user_password';");
-      }
-      await db.execAsync(`
-        CREATE TABLE IF NOT EXISTS settings_clean (
-          key TEXT PRIMARY KEY NOT NULL,
-          value TEXT NOT NULL
-        );
-        INSERT OR REPLACE INTO settings_clean (key, value)
-          SELECT key, value FROM settings WHERE key != 'user_password' AND value IS NOT NULL;
-        DROP TABLE settings;
-        ALTER TABLE settings_clean RENAME TO settings;
-      `);
+      await db.withTransactionAsync(async () => {
+        if (hasCol) {
+          await db.execAsync('UPDATE settings SET user_password = NULL;');
+        }
+        if (hasRow) {
+          await db.execAsync("UPDATE settings SET value = '' WHERE key = 'user_password';");
+          await db.execAsync("DELETE FROM settings WHERE key = 'user_password';");
+        }
+        await db.execAsync(`
+          CREATE TABLE IF NOT EXISTS settings_clean (
+            key TEXT PRIMARY KEY NOT NULL,
+            value TEXT NOT NULL
+          );
+          INSERT OR REPLACE INTO settings_clean (key, value)
+            SELECT key, value FROM settings WHERE key != 'user_password' AND value IS NOT NULL;
+          DROP TABLE settings;
+          ALTER TABLE settings_clean RENAME TO settings;
+        `);
+      });
     }
   } catch (err) {
     console.warn('Settings rebuild migration note:', err);
+    throw err;
   }
 }
 

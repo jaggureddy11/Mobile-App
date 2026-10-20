@@ -29,6 +29,7 @@ function deserializeItem(row: any): Item {
     tags: Array.isArray(parsedTags) ? parsedTags : [],
     times_surfaced: row.times_surfaced ?? 0,
     snoozed_until: row.snoozed_until ?? null,
+    merged_into: row.merged_into ?? null,
   };
 }
 

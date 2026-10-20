@@ -1,56 +1,147 @@
-# Welcome to your Expo app 👋
+# Re:Mind (Mobile App)
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+> A calm, intentional "save for later" mobile application for iOS and Android. Offline-first, zero-telemetry, and designed to gently resurface saved articles, reels, thoughts, and tasks during your free downtime.
 
-## Get started
+---
 
-1. Install dependencies
+## Key Principles & Architecture
 
-   ```bash
-   npm install
-   ```
+- **Offline-First**: All data is stored in a local SQLite database (`maybe_later.db`) with Write-Ahead Logging (`WAL`) enabled.
+- **Zero Telemetry**: No tracking, no analytics, no third-party crash reporting. All debug logs are in-memory (capped at 50, zero URLs/titles) and stay strictly on your device.
+- **Smart Downtime Resurfacing**: Items are matched against your available downtime (5, 15, or 30 minutes) using a calm least-surfaced priority algorithm.
+- **First-Day Rest**: Newly saved items rest for 24 hours before resurfacing to prevent cognitive overload.
+- **System Share Intent**: Deep native integration allows saving directly from iOS and Android Share Sheets.
 
-2. Start the app
+---
 
-   ```bash
-   npx expo start
-   ```
+## Prerequisites
 
-In the output, you'll find options to open the app in a
+- **Node.js**: `v20.x` or later (LTS recommended)
+- **Package Manager**: `npm`
+- **Expo CLI**: bundled with Expo SDK 58 (`npx expo`)
+- **EAS CLI**: `npx -y eas-cli@latest` (for cloud and local builds)
+- **Xcode** (macOS) / **Android Studio** (for local native development builds)
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+---
 
-You can start developing by editing the files inside the **src/app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+## 1. Installation
 
-## Get a fresh project
-
-When you're ready, run:
+Clone the repository and install dependencies:
 
 ```bash
-npm run reset-project
+git clone https://github.com/jaggureddy11/Mobile-App.git
+cd Mobile-App
+npm install
 ```
 
-This command will move the starter code to the **example** directory and create a blank **src/app** directory where you can start developing.
+To install or upgrade Expo modules, always use Expo's dependency resolver:
 
-### Other setup steps
+```bash
+npx expo install <package-name>
+```
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+---
 
-## Learn more
+## 2. Running Locally
 
-To learn more about developing your project with Expo, look at the following resources:
+### Development Server
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+Start the Metro bundler:
 
-## Join the community
+```bash
+npx expo start
+```
 
-Join our community of developers creating universal apps.
+### Running on Simulators / Devices
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Because Re:Mind utilizes custom native code (`expo-share-intent`, `expo-sqlite`, `expo-notifications`), it requires a **Development Build** rather than bare Expo Go:
+
+```bash
+# Run on iOS Simulator (macOS only)
+npx expo run:ios
+
+# Run on Android Emulator or connected device
+npx expo run:android
+```
+
+> **Note on Native Directories**: Native iOS and Android projects are generated on-the-fly via Expo Prebuild (Continuous Native Generation). Do not manually edit files in `ios/` or `android/`. All native configurations are maintained in `app.json`.
+
+---
+
+## 3. Testing & Code Quality
+
+Run tests, typechecks, and diagnostic audits before committing:
+
+```bash
+# Run complete Jest test suite (230+ unit & integration tests)
+npm test
+
+# Run TypeScript compiler check
+npx tsc --noEmit
+
+# Run Expo Doctor dependency & configuration diagnostics
+npx expo-doctor
+
+# Run ESLint
+npx expo lint
+```
+
+---
+
+## 4. Building with EAS
+
+Re:Mind uses Expo Application Services (EAS) for cloud and local builds.
+
+### Login to Expo
+
+```bash
+npx eas-cli login
+```
+
+### Preview Builds (Internal Testing)
+
+To generate standalone internal distribution builds for beta testers without publishing to app stores:
+
+```bash
+# Build Android APK / AAB
+npx eas-cli build --profile preview --platform android
+
+# Build iOS Ad-Hoc / Simulator build
+npx eas-cli build --profile preview --platform ios
+```
+
+### Production Release Builds
+
+```bash
+npx eas-cli build --profile production --platform all
+```
+
+---
+
+## Project Structure
+
+```
+├── app/                  # Expo Router screens & layouts (file-based routing)
+│   ├── (tabs)/           # Main bottom tabs: Today, All Saved, Settings
+│   ├── add.tsx           # Manual save modal
+│   ├── item/[id].tsx     # Item detail screen
+│   └── _layout.tsx       # Root navigator & splash screen handler
+├── src/
+│   ├── components/       # Reusable UI components (ActivityCard, TimeChip, etc.)
+│   ├── config/           # Feature flags and app configuration
+│   ├── db/               # SQLite database, schema migrations, and repositories
+│   ├── domain/           # Core domain logic, eligibility, resurfacing, stores
+│   ├── platform/         # Native integrations (share intents, notifications, metadata)
+│   ├── theme/            # Design tokens (colors, typography, spacing, radii)
+│   └── utils/            # Debug logger, performance tracker
+├── docs/                 # Product requirements, testing, and privacy documentation
+├── assets/               # Brand assets, logos, and app icons
+├── app.json              # Expo application configuration & plugins
+└── eas.json              # EAS Build profiles
+```
+
+---
+
+## Privacy & Security
+
+For complete details on our data protection and privacy guarantees, refer to [docs/PRIVACY.md](docs/PRIVACY.md).

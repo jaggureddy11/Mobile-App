@@ -1,4 +1,4 @@
-import { initSchema, setTestDatabase } from '../database';
+import { initSchema, setTestDatabase, mergeDuplicateItems, getStartupMigrationError } from '../database';
 
 describe('Database Migration & Data Preservation', () => {
   let itemsTable: any[];
@@ -116,6 +116,9 @@ describe('Database Migration & Data Preservation', () => {
         if (sql.includes('SELECT url, COUNT(*) as count FROM items')) {
           return [];
         }
+        if (sql.includes('PRAGMA table_info(items);')) {
+          return [{ name: 'id' }, { name: 'title' }];
+        }
         return [];
       }),
 
@@ -132,10 +135,30 @@ describe('Database Migration & Data Preservation', () => {
           const item = itemsTable.find((i) => i.id === params?.[1]);
           if (item) item.normalized_url = params?.[0];
         }
+        if (sql.includes("UPDATE items SET status = 'let_go'")) {
+          const item = itemsTable.find((i) => i.id === params?.[2]);
+          if (item) {
+            item.status = 'let_go';
+            item.let_go_at = params?.[0];
+            item.merged_into = params?.[1];
+          }
+        }
         return undefined;
       }),
 
-      withTransactionAsync: jest.fn().mockImplementation(async (cb: () => Promise<any>) => await cb()),
+      withTransactionAsync: jest.fn().mockImplementation(async (cb: () => Promise<any>) => {
+        const snapshotItems = JSON.parse(JSON.stringify(itemsTable));
+        const snapshotSettings = JSON.parse(JSON.stringify(settingsTable));
+        const snapshotCollections = JSON.parse(JSON.stringify(collectionsTable));
+        try {
+          return await cb();
+        } catch (err) {
+          itemsTable = snapshotItems;
+          settingsTable = snapshotSettings;
+          collectionsTable = snapshotCollections;
+          throw err;
+        }
+      }),
     };
 
     setTestDatabase(mockDb);
@@ -199,5 +222,56 @@ describe('Database Migration & Data Preservation', () => {
     expect(fullSqlLog).toContain('CREATE TABLE IF NOT EXISTS settings_clean');
     expect(fullSqlLog).toContain('DROP TABLE settings;');
     expect(fullSqlLog).toContain('ALTER TABLE settings_clean RENAME TO settings;');
+  });
+
+  it('forces a failure mid-migration, asserts transaction rolls back, and verifies original data remains intact', async () => {
+    // Intercept execAsync to fail specifically during migrateUrlIndex
+    const originalExec = mockDb.execAsync;
+    mockDb.execAsync = jest.fn().mockImplementation(async (sql: string) => {
+      if (sql.includes('idx_items_normalized_url')) {
+        throw new Error('SIMULATED_MIGRATION_FAILURE_DISK_FULL');
+      }
+      return originalExec(sql);
+    });
+
+    // Run initSchema and expect it to throw and set startupMigrationError
+    await expect(initSchema(mockDb)).rejects.toThrow('SIMULATED_MIGRATION_FAILURE_DISK_FULL');
+    expect(getStartupMigrationError()).toContain('SIMULATED_MIGRATION_FAILURE_DISK_FULL');
+
+    // Verify all original items remain intact and unaltered
+    const preservedItems = await mockDb.getAllAsync('SELECT * FROM items');
+    expect(preservedItems.length).toBe(3);
+    expect(preservedItems[0].id).toBe('item-1');
+    expect(preservedItems[0].title).toBe('Essential React Native Architecture');
+    expect(preservedItems[1].id).toBe('item-2');
+    expect(preservedItems[2].id).toBe('item-3');
+
+    // Verify original collections are intact
+    const preservedCollections = await mockDb.getAllAsync('SELECT * FROM collections');
+    expect(preservedCollections.length).toBe(2);
+    expect(preservedCollections[0].name).toBe('Reading List');
+  });
+
+  it('merges duplicate items using the separate merged_into column without altering the user note', async () => {
+    await initSchema(mockDb);
+
+    const keepItem = itemsTable[0];
+    const dupItem: any = {
+      id: 'item-dup',
+      type: 'link',
+      title: 'Duplicate Item',
+      url: 'https://example.com/rn-arch',
+      note: 'My personal precious note',
+      minutes: 15,
+      status: 'pending',
+      created_at: '2026-01-01T11:00:00.000Z',
+    };
+    itemsTable.push(dupItem);
+
+    await mergeDuplicateItems(mockDb, keepItem.id, [dupItem.id]);
+
+    expect(dupItem.status).toBe('let_go');
+    expect(dupItem.merged_into).toBe(keepItem.id);
+    expect(dupItem.note).toBe('My personal precious note'); // Untouched! No [Merged into ...] prepended or appended
   });
 });

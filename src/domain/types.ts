@@ -37,6 +37,7 @@ export interface Item {
   image_url?: string | null;
   site_name?: string | null;
   normalized_url?: string | null;
+  merged_into?: string | null;
 }
 
 export interface SurfaceEvent {
