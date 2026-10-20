@@ -5,6 +5,9 @@ import {
   getStartupMigrationError,
   retryDatabaseInitialization,
   getDatabase,
+  migrateUrlIndex,
+  migrateMergedIntoColumn,
+  migratePurgePassword,
 } from '../database';
 
 describe('Database Migration & Data Preservation', () => {
@@ -344,10 +347,11 @@ describe('Database Migration & Data Preservation', () => {
     expect(await getDatabase()).toBe(mockDb);
   });
 
-  it('strictly enforces that migrations use the transaction handle (txn) and fails if outer db handle is touched inside a transaction', async () => {
+  it('strictly verifies real migration functions (migrateUrlIndex, migrateMergedIntoColumn, migratePurgePassword) run within runExclusiveTransaction and use txn exclusively without touching outer db', async () => {
     let inExclusiveTxn = false;
+    const txnRecordedCalls: { method: string; sql: string; params?: any[] }[] = [];
 
-    // Track calls on the outer handle
+    // Guard to catch any statement executed against outer db while an exclusive transaction is active
     const outerGuard = (methodName: string) => {
       if (inExclusiveTxn) {
         throw new Error(
@@ -356,7 +360,26 @@ describe('Database Migration & Data Preservation', () => {
       }
     };
 
-    const strictDb: any = {
+    const txnObject = {
+      execAsync: jest.fn().mockImplementation(async (sql: string) => {
+        txnRecordedCalls.push({ method: 'execAsync', sql });
+        return mockDb.execAsync(sql);
+      }),
+      getAllAsync: jest.fn().mockImplementation(async (sql: string) => {
+        txnRecordedCalls.push({ method: 'getAllAsync', sql });
+        return mockDb.getAllAsync(sql);
+      }),
+      getFirstAsync: jest.fn().mockImplementation(async (sql: string) => {
+        txnRecordedCalls.push({ method: 'getFirstAsync', sql });
+        return mockDb.getFirstAsync(sql);
+      }),
+      runAsync: jest.fn().mockImplementation(async (sql: string, params?: any[]) => {
+        txnRecordedCalls.push({ method: 'runAsync', sql, params });
+        return mockDb.runAsync(sql, params);
+      }),
+    };
+
+    const guardedDb: any = {
       ...mockDb,
       execAsync: jest.fn().mockImplementation(async (sql: string) => {
         outerGuard('execAsync');
@@ -376,64 +399,31 @@ describe('Database Migration & Data Preservation', () => {
       }),
       withExclusiveTransactionAsync: jest.fn().mockImplementation(async (cb: (txn: any) => Promise<any>) => {
         inExclusiveTxn = true;
-        const txn = {
-          execAsync: jest.fn().mockImplementation((sql: string) => mockDb.execAsync(sql)),
-          getAllAsync: jest.fn().mockImplementation((sql: string) => mockDb.getAllAsync(sql)),
-          getFirstAsync: jest.fn().mockImplementation((sql: string) => mockDb.getFirstAsync(sql)),
-          runAsync: jest.fn().mockImplementation((sql: string, params?: any[]) => mockDb.runAsync(sql, params)),
-        };
         try {
-          return await cb(txn);
+          return await cb(txnObject);
         } finally {
           inExclusiveTxn = false;
         }
       }),
     };
 
-    // Run all migrations through strictDb - will throw if ANY migration touches outer strictDb inside transaction
-    await expect(initSchema(strictDb)).resolves.not.toThrow();
-  });
+    // 1. Test real migratePurgePassword: must run inside exclusive transaction using txn
+    settingsColumns = ['key', 'value', 'user_password'];
+    settingsTable = [{ key: 'user_password', value: 'secret123', user_password: 'secret123' }];
+    txnRecordedCalls.length = 0;
+    await expect(migratePurgePassword(guardedDb)).resolves.not.toThrow();
+    expect(guardedDb.withExclusiveTransactionAsync).toHaveBeenCalled();
+    expect(txnRecordedCalls.some((c) => c.sql.includes('settings_clean'))).toBe(true);
 
-  it('fails immediately if a migration statement mistakenly touches the outer db handle inside withExclusiveTransactionAsync', async () => {
-    let inExclusiveTxn = false;
+    // 2. Test real migrateUrlIndex: must run inside exclusive transaction using txn
+    txnRecordedCalls.length = 0;
+    await expect(migrateUrlIndex(guardedDb)).resolves.not.toThrow();
+    expect(txnRecordedCalls.some((c) => c.sql.includes('idx_items_normalized_url'))).toBe(true);
 
-    const outerGuard = (methodName: string) => {
-      if (inExclusiveTxn) {
-        throw new Error(
-          `CRITICAL_VIOLATION: Outer db.${methodName}() called inside withExclusiveTransactionAsync! Migrations must use the txn handle.`
-        );
-      }
-    };
-
-    const faultyDb: any = {
-      ...mockDb,
-      execAsync: jest.fn().mockImplementation(async (sql: string) => {
-        outerGuard('execAsync');
-        return mockDb.execAsync(sql);
-      }),
-      withExclusiveTransactionAsync: jest.fn().mockImplementation(async (cb: (txn: any) => Promise<any>) => {
-        inExclusiveTxn = true;
-        try {
-          return await cb({
-            execAsync: jest.fn().mockImplementation(async () => {
-              // Simulates a bug where migration touches the outer db handle instead of txn
-              await faultyDb.execAsync('SELECT 1;');
-            }),
-            getAllAsync: jest.fn().mockResolvedValue([]),
-            getFirstAsync: jest.fn().mockResolvedValue(null),
-            runAsync: jest.fn().mockResolvedValue({}),
-          });
-        } finally {
-          inExclusiveTxn = false;
-        }
-      }),
-    };
-
-    await expect(
-      faultyDb.withExclusiveTransactionAsync(async (txn: any) => {
-        await txn.execAsync('ALTER TABLE items ADD COLUMN test TEXT;');
-      })
-    ).rejects.toThrow('CRITICAL_VIOLATION: Outer db.execAsync() called inside withExclusiveTransactionAsync!');
+    // 3. Test real migrateMergedIntoColumn: must run inside exclusive transaction using txn
+    txnRecordedCalls.length = 0;
+    await expect(migrateMergedIntoColumn(guardedDb)).resolves.not.toThrow();
+    expect(txnRecordedCalls.some((c) => c.sql.includes('ALTER TABLE items ADD COLUMN merged_into'))).toBe(true);
   });
 
   it('proves that retryDatabaseInitialization flushes in-memory debug log buffer to SQLite upon successful retry', async () => {
