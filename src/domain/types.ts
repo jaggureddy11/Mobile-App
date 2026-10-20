@@ -4,6 +4,16 @@ export type ItemStatus = 'pending' | 'done' | 'let_go';
 
 export type MinuteOption = 1 | 5 | 15 | 30;
 
+export type RemindInterval = 'none' | 'daily' | '1_day' | '2_days' | '1_month';
+
+export interface Collection {
+  id: string;
+  name: string;
+  color?: string | null;
+  created_at: string;
+  item_count?: number;
+}
+
 export interface Item {
   id: string;
   type: ItemType;
@@ -16,6 +26,10 @@ export interface Item {
   done_at?: string | null;
   let_go_at?: string | null;
   resurfaced_at?: string | null;
+  collection_id?: string | null;
+  tags?: string[];
+  remind_interval?: RemindInterval | null;
+  remind_at?: string | null;
 }
 
 export type CreateItemInput = {
@@ -24,6 +38,10 @@ export type CreateItemInput = {
   url?: string | null;
   note?: string | null;
   minutes?: MinuteOption;
+  collection_id?: string | null;
+  tags?: string[];
+  remind_interval?: RemindInterval | null;
+  remind_at?: string | null;
 };
 
 export type NudgeFrequency = 'daily' | 'weekly' | 'never';
@@ -34,6 +52,8 @@ export interface UserSettings {
   quiet_hours_start: string; // e.g., "22:00"
   quiet_hours_end: string; // e.g., "08:00"
   onboarding_completed: boolean;
+  user_email?: string | null;
+  user_password?: string | null;
 }
 
 export const DEFAULT_ITEM_MINUTES: Record<ItemType, MinuteOption> = {
@@ -50,4 +70,6 @@ export const DEFAULT_SETTINGS: UserSettings = {
   quiet_hours_start: '22:00',
   quiet_hours_end: '08:00',
   onboarding_completed: true,
+  user_email: null,
+  user_password: null,
 };

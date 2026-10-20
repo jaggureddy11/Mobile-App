@@ -2,34 +2,65 @@ import * as Crypto from 'expo-crypto';
 import { getDatabase } from './database';
 import { Item, CreateItemInput, ItemStatus, DEFAULT_ITEM_MINUTES } from '../domain/types';
 
+function deserializeItem(row: any): Item {
+  let parsedTags: string[] = [];
+  if (row.tags) {
+    try {
+      parsedTags = typeof row.tags === 'string' ? JSON.parse(row.tags) : row.tags;
+    } catch {
+      parsedTags = String(row.tags).split(',').map((s: string) => s.trim()).filter(Boolean);
+    }
+  }
+  return {
+    ...row,
+    tags: Array.isArray(parsedTags) ? parsedTags : [],
+  };
+}
+
+function calculateRemindAt(interval?: string | null): string | null {
+  if (!interval || interval === 'none') return null;
+  const now = new Date();
+  if (interval === 'daily' || interval === '1_day') {
+    now.setDate(now.getDate() + 1);
+  } else if (interval === '2_days') {
+    now.setDate(now.getDate() + 2);
+  } else if (interval === '1_month') {
+    now.setMonth(now.getMonth() + 1);
+  }
+  return now.toISOString();
+}
+
 export const itemsRepo = {
   async getAll(): Promise<Item[]> {
     const db = await getDatabase();
-    const rows = await db.getAllAsync<Item>(
+    const rows = await db.getAllAsync<any>(
       'SELECT * FROM items ORDER BY created_at DESC'
     );
-    return rows;
+    return rows.map(deserializeItem);
   },
 
   async getPending(): Promise<Item[]> {
     const db = await getDatabase();
-    const rows = await db.getAllAsync<Item>(
+    const rows = await db.getAllAsync<any>(
       "SELECT * FROM items WHERE status = 'pending' ORDER BY created_at DESC"
     );
-    return rows;
+    return rows.map(deserializeItem);
   },
 
   async getById(id: string): Promise<Item | null> {
     const db = await getDatabase();
-    const row = await db.getFirstAsync<Item>(
+    const row = await db.getFirstAsync<any>(
       'SELECT * FROM items WHERE id = ?',
       [id]
     );
-    return row || null;
+    return row ? deserializeItem(row) : null;
   },
 
   async create(input: CreateItemInput): Promise<Item> {
     const db = await getDatabase();
+    const remindAt = input.remind_at || calculateRemindAt(input.remind_interval);
+    const tagsJson = JSON.stringify(input.tags || []);
+
     const newItem: Item = {
       id: Crypto.randomUUID(),
       type: input.type,
@@ -42,11 +73,15 @@ export const itemsRepo = {
       done_at: null,
       let_go_at: null,
       resurfaced_at: null,
+      collection_id: input.collection_id || null,
+      tags: input.tags || [],
+      remind_interval: input.remind_interval || 'none',
+      remind_at: remindAt,
     };
 
     await db.runAsync(
-      `INSERT INTO items (id, type, title, url, note, minutes, status, created_at, done_at, let_go_at, resurfaced_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO items (id, type, title, url, note, minutes, status, created_at, done_at, let_go_at, resurfaced_at, collection_id, tags, remind_interval, remind_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         newItem.id,
         newItem.type,
@@ -59,6 +94,10 @@ export const itemsRepo = {
         newItem.done_at ?? null,
         newItem.let_go_at ?? null,
         newItem.resurfaced_at ?? null,
+        newItem.collection_id ?? null,
+        tagsJson,
+        newItem.remind_interval ?? null,
+        newItem.remind_at ?? null,
       ]
     );
 

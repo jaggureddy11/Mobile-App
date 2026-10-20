@@ -5,121 +5,305 @@ import {
   StyleSheet,
   SafeAreaView,
   TouchableOpacity,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Compass, HeartHandshake, Bell } from 'lucide-react-native';
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  Mail,
+  Lock,
+} from 'lucide-react-native';
 import { colors, typography, spacing, radii, shadows } from '@/theme';
 import { useSettingsStore } from '@/domain/useSettingsStore';
 import { NudgeFrequency } from '@/domain/types';
+import {
+  DoodleReading,
+  DoodleCollections,
+  DoodleTime,
+  DoodleSanctuary,
+} from '@/components/DoodleIllustrations';
 
 export default function OnboardingScreen() {
   const router = useRouter();
   const { completeOnboarding, updateSettings } = useSettingsStore();
 
-  const [step, setStep] = useState<1 | 2>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [frequency, setFrequency] = useState<NudgeFrequency>('daily');
 
-  const handleFinish = async () => {
-    await updateSettings({ nudge_frequency: frequency });
-    await completeOnboarding();
-    router.replace('/(tabs)/today');
+  // Sign in / account fields
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleFinish = async (skipAuth = false) => {
+    if (!skipAuth) {
+      if (email.trim() && (!password || password.length < 6)) {
+        setErrorMessage('Password must be at least 6 characters');
+        return;
+      }
+      if (password !== confirmPassword) {
+        setErrorMessage('Passwords do not match');
+        return;
+      }
+    }
+
+    setIsSubmitting(true);
+    try {
+      await updateSettings({
+        nudge_frequency: frequency,
+        user_email: email.trim() || null,
+        user_password: password || null,
+      });
+      await completeOnboarding();
+      router.replace('/(tabs)/today');
+    } catch (err) {
+      console.error('Failed to complete onboarding:', err);
+      setIsSubmitting(false);
+    }
+  };
+
+  const renderDoodle = () => {
+    switch (step) {
+      case 1:
+        return <DoodleReading size={160} />;
+      case 2:
+        return <DoodleCollections size={160} />;
+      case 3:
+        return <DoodleTime size={160} />;
+      case 4:
+      default:
+        return <DoodleSanctuary size={140} />;
+    }
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        {/* Progress Dots */}
-        <View style={styles.progressRow}>
-          <View style={[styles.dot, step === 1 && styles.dotActive]} />
-          <View style={[styles.dot, step === 2 && styles.dotActive]} />
-        </View>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={styles.keyboardAvoid}
+      >
+        <View style={styles.container}>
+          {/* Header Bar with Back and Step Dots */}
+          <View style={styles.topBar}>
+            {step > 1 ? (
+              <TouchableOpacity
+                style={styles.backBtn}
+                onPress={() => setStep((s) => (s - 1) as 1 | 2 | 3 | 4)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                activeOpacity={0.7}
+              >
+                <ArrowLeft size={18} color={colors.textPrimary} />
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.backBtnPlaceholder} />
+            )}
 
-        {step === 1 ? (
-          <View style={styles.content}>
-            <View style={styles.illustrationBox}>
-              <View style={styles.glowCircle} />
-              <View style={styles.iconCircle}>
-                <Compass size={48} color={colors.accent} />
-              </View>
+            {/* Progress Dots */}
+            <View style={styles.progressRow}>
+              {[1, 2, 3, 4].map((i) => (
+                <View
+                  key={i}
+                  style={[styles.dot, step === i && styles.dotActive]}
+                />
+              ))}
             </View>
 
-            <Text style={styles.tag}>MAYBE LATER</Text>
-            <Text style={styles.title}>Take a breath,{'\n'}one task at a time.</Text>
-            <Text style={styles.subtitle}>
-              Intentional productivity starts with being present. Save what inspires you now; come back when you have a minute.
-            </Text>
+            {step === 4 ? (
+              <TouchableOpacity
+                onPress={() => handleFinish(true)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text style={styles.skipText}>Skip</Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.backBtnPlaceholder} />
+            )}
           </View>
-        ) : (
-          <View style={styles.content}>
-            <View style={styles.illustrationBox}>
-              <View style={styles.glowCircle} />
-              <View style={styles.iconCircle}>
-                <Bell size={42} color={colors.accent} />
+
+          {/* Content Area */}
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* Doodle Illustration */}
+            <View style={styles.doodleContainer}>{renderDoodle()}</View>
+
+            {/* Step 1 */}
+            {step === 1 && (
+              <View style={styles.stepContent}>
+                <Text style={styles.tag}>MINDFUL SPACE</Text>
+                <Text style={styles.title}>A calm sanctuary{'\n'}for your attention.</Text>
+                <Text style={styles.subtitle}>
+                  Save articles, videos, thoughts, and tasks you discover throughout your day.
+                  Review them when you actually have the headspace.
+                </Text>
               </View>
-            </View>
+            )}
 
-            <Text style={styles.tag}>GENTLE NUDGES</Text>
-            <Text style={styles.title}>How often should{'\n'}we nudge you?</Text>
-            <Text style={styles.subtitle}>
-              No guilt, no streaks. Just a quiet check-in when you have downtime.
-            </Text>
+            {/* Step 2 */}
+            {step === 2 && (
+              <View style={styles.stepContent}>
+                <Text style={styles.tag}>ORGANIZED INTENTION</Text>
+                <Text style={styles.title}>Collections &{'\n'}custom tags.</Text>
+                <Text style={styles.subtitle}>
+                  Group your saved inspirations into quiet collections, add tags with ease, and
+                  set reminders like daily, in 1 day, 2 days, or 1 month.
+                </Text>
+              </View>
+            )}
 
-            <View style={styles.optionsList}>
-              {(['daily', 'weekly', 'never'] as NudgeFrequency[]).map((opt) => {
-                const isSelected = frequency === opt;
-                const labels: Record<NudgeFrequency, { title: string; desc: string }> = {
-                  daily: { title: 'Daily', desc: 'Once an evening when you have downtime' },
-                  weekly: { title: 'Weekly', desc: 'A calm Sunday wind-down' },
-                  never: { title: 'Never', desc: 'I will open the app whenever I want' },
-                };
-                return (
-                  <TouchableOpacity
-                    key={opt}
-                    style={[styles.optionCard, isSelected && styles.optionCardActive]}
-                    onPress={() => setFrequency(opt)}
-                    activeOpacity={0.8}
-                  >
-                    <View style={styles.optionRadio}>
-                      {isSelected ? <View style={styles.optionRadioInner} /> : null}
-                    </View>
-                    <View style={styles.optionTextContainer}>
-                      <Text
-                        style={[
-                          styles.optionTitle,
-                          isSelected && styles.optionTitleActive,
-                        ]}
+            {/* Step 3 */}
+            {step === 3 && (
+              <View style={styles.stepContent}>
+                <Text style={styles.tag}>GENTLE NUDGES</Text>
+                <Text style={styles.title}>How often should{'\n'}we nudge you?</Text>
+                <Text style={styles.subtitle}>
+                  No guilt, no streaks. Just a quiet check-in when you have downtime.
+                </Text>
+
+                <View style={styles.optionsList}>
+                  {(['daily', 'weekly', 'never'] as NudgeFrequency[]).map((opt) => {
+                    const isSelected = frequency === opt;
+                    const labels: Record<NudgeFrequency, { title: string; desc: string }> = {
+                      daily: { title: 'Daily Evening', desc: 'Once a day when you have a calm minute' },
+                      weekly: { title: 'Weekly Calm', desc: 'A soothing Sunday wind-down review' },
+                      never: { title: 'Purely On Demand', desc: 'I will open the app on my own rhythm' },
+                    };
+                    return (
+                      <TouchableOpacity
+                        key={opt}
+                        style={[styles.optionCard, isSelected && styles.optionCardActive]}
+                        onPress={() => setFrequency(opt)}
+                        activeOpacity={0.8}
                       >
-                        {labels[opt].title}
-                      </Text>
-                      <Text style={styles.optionDesc}>{labels[opt].desc}</Text>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-        )}
+                        <View style={styles.optionRadio}>
+                          {isSelected ? <View style={styles.optionRadioInner} /> : null}
+                        </View>
+                        <View style={styles.optionTextContainer}>
+                          <Text
+                            style={[
+                              styles.optionTitle,
+                              isSelected && styles.optionTitleActive,
+                            ]}
+                          >
+                            {labels[opt].title}
+                          </Text>
+                          <Text style={styles.optionDesc}>{labels[opt].desc}</Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
 
-        <View style={styles.footer}>
-          {step === 1 ? (
-            <TouchableOpacity
-              style={styles.primaryButton}
-              onPress={() => setStep(2)}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.primaryButtonText}>Let's get started</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              style={styles.primaryButton}
-              onPress={handleFinish}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.primaryButtonText}>Start breathing</Text>
-            </TouchableOpacity>
-          )}
+            {/* Step 4: Simple Local Sign In / Setup */}
+            {step === 4 && (
+              <View style={styles.stepContent}>
+                <Text style={styles.tag}>YOUR SANCTUARY</Text>
+                <Text style={styles.title}>Set up your account</Text>
+                <Text style={styles.subtitle}>
+                  Your data stays strictly offline and private on your device.
+                </Text>
+
+                {errorMessage ? (
+                  <View style={styles.errorContainer}>
+                    <Text style={styles.errorText}>{errorMessage}</Text>
+                  </View>
+                ) : null}
+
+                <View style={styles.formContainer}>
+                  {/* Email */}
+                  <View style={styles.inputWrapper}>
+                    <Mail size={18} color={colors.accent} style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="Email address"
+                      placeholderTextColor="rgba(138, 126, 114, 0.45)"
+                      value={email}
+                      onChangeText={(t) => {
+                        setEmail(t);
+                        setErrorMessage('');
+                      }}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                    />
+                  </View>
+
+                  {/* Password */}
+                  <View style={styles.inputWrapper}>
+                    <Lock size={18} color={colors.accent} style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="Set password (min 6 characters)"
+                      placeholderTextColor="rgba(138, 126, 114, 0.45)"
+                      value={password}
+                      onChangeText={(t) => {
+                        setPassword(t);
+                        setErrorMessage('');
+                      }}
+                      secureTextEntry
+                      autoCapitalize="none"
+                    />
+                  </View>
+
+                  {/* Confirm Password */}
+                  <View style={styles.inputWrapper}>
+                    <Lock size={18} color={colors.accent} style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="Confirm password"
+                      placeholderTextColor="rgba(138, 126, 114, 0.45)"
+                      value={confirmPassword}
+                      onChangeText={(t) => {
+                        setConfirmPassword(t);
+                        setErrorMessage('');
+                      }}
+                      secureTextEntry
+                      autoCapitalize="none"
+                    />
+                  </View>
+                </View>
+              </View>
+            )}
+          </ScrollView>
+
+          {/* Footer Navigation Buttons */}
+          <View style={styles.footer}>
+            {step < 4 ? (
+              <TouchableOpacity
+                style={styles.primaryButton}
+                onPress={() => setStep((s) => (s + 1) as 1 | 2 | 3 | 4)}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.primaryButtonText}>Next</Text>
+                <ArrowRight size={18} color={colors.background} />
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={[styles.primaryButton, isSubmitting && styles.primaryButtonDisabled]}
+                onPress={() => handleFinish(false)}
+                disabled={isSubmitting}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.primaryButtonText}>
+                  {isSubmitting ? 'Entering sanctuary...' : 'Get Started'}
+                </Text>
+                <Check size={18} color={colors.background} />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -129,18 +313,42 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  keyboardAvoid: {
+    flex: 1,
+  },
   container: {
     flex: 1,
     paddingHorizontal: spacing.xxl,
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.xxl,
     justifyContent: 'space-between',
+  },
+  topBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+  },
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(212, 196, 176, 0.3)',
+  },
+  backBtnPlaceholder: {
+    width: 36,
+  },
+  skipText: {
+    ...typography.presets.caption,
+    fontWeight: '600',
+    color: colors.accent,
   },
   progressRow: {
     flexDirection: 'row',
-    justifyContent: 'center',
+    alignItems: 'center',
     gap: spacing.sm,
-    paddingTop: spacing.md,
   },
   dot: {
     width: 8,
@@ -152,37 +360,20 @@ const styles = StyleSheet.create({
     width: 24,
     backgroundColor: colors.textPrimary,
   },
-  content: {
-    flex: 1,
+  scrollContent: {
+    flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: spacing.xxl,
+    paddingVertical: spacing.xl,
   },
-  illustrationBox: {
-    width: 140,
-    height: 140,
+  doodleContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    position: 'relative',
-    marginBottom: spacing.xxxl,
+    marginBottom: spacing.xxl,
   },
-  glowCircle: {
-    position: 'absolute',
-    width: 130,
-    height: 130,
-    borderRadius: 65,
-    backgroundColor: 'rgba(212, 196, 176, 0.25)',
-  },
-  iconCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: 'rgba(212, 196, 176, 0.3)',
+  stepContent: {
+    width: '100%',
     alignItems: 'center',
-    justifyContent: 'center',
-    ...shadows.card,
   },
   tag: {
     ...typography.presets.tag,
@@ -200,10 +391,11 @@ const styles = StyleSheet.create({
     ...typography.presets.body,
     color: colors.textSecondary,
     textAlign: 'center',
-    maxWidth: 290,
+    maxWidth: 310,
     lineHeight: 22,
-    marginBottom: spacing.xxl,
+    marginBottom: spacing.xl,
   },
+  // Step 3 Options
   optionsList: {
     width: '100%',
     gap: spacing.md,
@@ -254,16 +446,59 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: 12,
   },
+  // Step 4 Form
+  errorContainer: {
+    width: '100%',
+    backgroundColor: 'rgba(212, 114, 114, 0.1)',
+    borderRadius: radii.md,
+    padding: spacing.sm,
+    marginBottom: spacing.md,
+    alignItems: 'center',
+  },
+  errorText: {
+    ...typography.presets.caption,
+    color: '#A84242',
+    fontWeight: '600',
+  },
+  formContainer: {
+    width: '100%',
+    gap: spacing.md,
+  },
+  inputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderRadius: radii.xl,
+    borderWidth: 1.5,
+    borderColor: 'rgba(212, 196, 176, 0.4)',
+    paddingHorizontal: spacing.lg,
+    height: 56,
+  },
+  inputIcon: {
+    marginRight: spacing.md,
+  },
+  textInput: {
+    flex: 1,
+    height: '100%',
+    color: colors.textPrimary,
+    ...typography.presets.body,
+  },
+  // Footer Buttons
   footer: {
-    paddingTop: spacing.lg,
+    paddingVertical: spacing.lg,
   },
   primaryButton: {
-    height: 60,
+    height: 58,
     borderRadius: radii.xl,
     backgroundColor: colors.textPrimary,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: spacing.sm,
     ...shadows.soft,
+  },
+  primaryButtonDisabled: {
+    opacity: 0.5,
   },
   primaryButtonText: {
     ...typography.presets.button,

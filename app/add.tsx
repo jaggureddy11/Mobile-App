@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,10 +11,23 @@ import {
   ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { X, Link2, PlayCircle, FileText, CheckSquare, Compass } from 'lucide-react-native';
+import {
+  X,
+  Link2,
+  PlayCircle,
+  FileText,
+  CheckSquare,
+  Compass,
+  Folder,
+  Plus,
+  Bell,
+  Tag as TagIcon,
+  Check,
+} from 'lucide-react-native';
 import { colors, typography, spacing, radii, shadows } from '@/theme';
 import { useItemsStore } from '@/domain/useItemsStore';
-import { ItemType, MinuteOption, DEFAULT_ITEM_MINUTES } from '@/domain/types';
+import { useCollectionsStore } from '@/domain/useCollectionsStore';
+import { ItemType, MinuteOption, RemindInterval, DEFAULT_ITEM_MINUTES } from '@/domain/types';
 import { detectItemTypeFromUrl } from '@/platform/useListenShareIntent';
 
 const TYPE_OPTIONS: { type: ItemType; label: string; icon: React.ComponentType<{ size: number; color: string }> }[] = [
@@ -27,16 +40,40 @@ const TYPE_OPTIONS: { type: ItemType; label: string; icon: React.ComponentType<{
 
 const DURATION_OPTIONS: MinuteOption[] = [1, 5, 15, 30];
 
+const REMINDER_OPTIONS: { value: RemindInterval; label: string }[] = [
+  { value: 'none', label: 'None' },
+  { value: 'daily', label: 'Daily' },
+  { value: '1_day', label: '1 Day' },
+  { value: '2_days', label: '2 Days' },
+  { value: '1_month', label: '1 Month' },
+];
+
+const SUGGESTED_TAGS = ['focus', 'reading', 'design', 'learn', 'weekend', 'calm'];
+
 export default function AddModal() {
   const router = useRouter();
   const addItem = useItemsStore((state) => state.addItem);
+  const { collections, loadCollections, createCollection } = useCollectionsStore();
 
   const [title, setTitle] = useState('');
   const [url, setUrl] = useState('');
   const [note, setNote] = useState('');
   const [selectedType, setSelectedType] = useState<ItemType>('link');
   const [selectedMinutes, setSelectedMinutes] = useState<MinuteOption>(5);
+  const [selectedCollectionId, setSelectedCollectionId] = useState<string | null>(null);
+  const [selectedReminder, setSelectedReminder] = useState<RemindInterval>('none');
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState('');
+  
+  // Inline collection creation state
+  const [isCreatingCollection, setIsCreatingCollection] = useState(false);
+  const [newCollectionName, setNewCollectionName] = useState('');
+
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    loadCollections();
+  }, []);
 
   // Auto-detect type when URL changes
   const handleUrlChange = (text: string) => {
@@ -53,6 +90,31 @@ export default function AddModal() {
     setSelectedMinutes(DEFAULT_ITEM_MINUTES[type]);
   };
 
+  const handleAddTag = (tagToAdd?: string) => {
+    const raw = (tagToAdd || tagInput).trim().replace(/^#/, '');
+    if (!raw) return;
+    if (!tags.includes(raw)) {
+      setTags([...tags, raw]);
+    }
+    setTagInput('');
+  };
+
+  const handleRemoveTag = (tagToRemove: string) => {
+    setTags(tags.filter((t) => t !== tagToRemove));
+  };
+
+  const handleCreateCollection = async () => {
+    if (!newCollectionName.trim()) return;
+    try {
+      const created = await createCollection(newCollectionName.trim());
+      setSelectedCollectionId(created.id);
+      setNewCollectionName('');
+      setIsCreatingCollection(false);
+    } catch (err) {
+      console.error('Failed to create collection:', err);
+    }
+  };
+
   const handleSave = async () => {
     if (!title.trim() && !url.trim()) return;
 
@@ -64,6 +126,9 @@ export default function AddModal() {
         url: url.trim() || null,
         note: note.trim() || null,
         minutes: selectedMinutes,
+        collection_id: selectedCollectionId,
+        tags,
+        remind_interval: selectedReminder,
       });
       router.back();
     } catch (err) {
@@ -188,6 +253,196 @@ export default function AddModal() {
             </View>
           </View>
 
+          {/* Collection Selector */}
+          <View style={styles.inputGroup}>
+            <View style={styles.labelWithIcon}>
+              <Folder size={14} color={colors.accent} />
+              <Text style={styles.fieldLabelInline}>COLLECTION</Text>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.collectionsScroll}
+            >
+              <TouchableOpacity
+                style={[
+                  styles.collectionPill,
+                  selectedCollectionId === null && styles.collectionPillActive,
+                ]}
+                onPress={() => setSelectedCollectionId(null)}
+                activeOpacity={0.8}
+              >
+                <Text
+                  style={[
+                    styles.collectionPillText,
+                    selectedCollectionId === null && styles.collectionPillTextActive,
+                  ]}
+                >
+                  None
+                </Text>
+              </TouchableOpacity>
+
+              {collections.map((col) => {
+                const isSelected = selectedCollectionId === col.id;
+                return (
+                  <TouchableOpacity
+                    key={col.id}
+                    style={[
+                      styles.collectionPill,
+                      isSelected && styles.collectionPillActive,
+                    ]}
+                    onPress={() => setSelectedCollectionId(col.id)}
+                    activeOpacity={0.8}
+                  >
+                    <Text
+                      style={[
+                        styles.collectionPillText,
+                        isSelected && styles.collectionPillTextActive,
+                      ]}
+                    >
+                      {col.name}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+
+              <TouchableOpacity
+                style={styles.newCollectionPill}
+                onPress={() => setIsCreatingCollection(true)}
+                activeOpacity={0.8}
+              >
+                <Plus size={14} color={colors.accent} />
+                <Text style={styles.newCollectionPillText}>New</Text>
+              </TouchableOpacity>
+            </ScrollView>
+
+            {/* Inline New Collection Creator */}
+            {isCreatingCollection && (
+              <View style={styles.newCollectionInputRow}>
+                <TextInput
+                  style={styles.inlineInput}
+                  placeholder="Collection name..."
+                  placeholderTextColor="rgba(138, 126, 114, 0.4)"
+                  value={newCollectionName}
+                  onChangeText={setNewCollectionName}
+                  autoFocus
+                  returnKeyType="done"
+                  onSubmitEditing={handleCreateCollection}
+                />
+                <TouchableOpacity
+                  style={styles.inlineCreateBtn}
+                  onPress={handleCreateCollection}
+                  activeOpacity={0.8}
+                >
+                  <Check size={16} color={colors.background} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.inlineCancelBtn}
+                  onPress={() => {
+                    setIsCreatingCollection(false);
+                    setNewCollectionName('');
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <X size={16} color={colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+
+          {/* Reminding Feature */}
+          <View style={styles.inputGroup}>
+            <View style={styles.labelWithIcon}>
+              <Bell size={14} color={colors.accent} />
+              <Text style={styles.fieldLabelInline}>REMIND ME</Text>
+            </View>
+            <View style={styles.reminderRow}>
+              {REMINDER_OPTIONS.map((opt) => {
+                const isSelected = selectedReminder === opt.value;
+                return (
+                  <TouchableOpacity
+                    key={opt.value}
+                    style={[
+                      styles.reminderPill,
+                      isSelected && styles.reminderPillActive,
+                    ]}
+                    onPress={() => setSelectedReminder(opt.value)}
+                    activeOpacity={0.8}
+                  >
+                    <Text
+                      style={[
+                        styles.reminderPillText,
+                        isSelected && styles.reminderPillTextActive,
+                      ]}
+                    >
+                      {opt.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* Tags Feature */}
+          <View style={styles.inputGroup}>
+            <View style={styles.labelWithIcon}>
+              <TagIcon size={14} color={colors.accent} />
+              <Text style={styles.fieldLabelInline}>TAGS (OPTIONAL)</Text>
+            </View>
+            
+            {/* Active Tags Chips */}
+            {tags.length > 0 && (
+              <View style={styles.activeTagsRow}>
+                {tags.map((tag) => (
+                  <View key={tag} style={styles.activeTagChip}>
+                    <Text style={styles.activeTagText}>#{tag}</Text>
+                    <TouchableOpacity
+                      onPress={() => handleRemoveTag(tag)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <X size={13} color={colors.textPrimary} />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {/* Tag Input */}
+            <View style={styles.tagInputRow}>
+              <TextInput
+                style={styles.tagInput}
+                placeholder="Add tag (e.g. reading, focus)..."
+                placeholderTextColor="rgba(138, 126, 114, 0.4)"
+                value={tagInput}
+                onChangeText={setTagInput}
+                returnKeyType="done"
+                onSubmitEditing={() => handleAddTag()}
+              />
+              <TouchableOpacity
+                style={styles.addTagButton}
+                onPress={() => handleAddTag()}
+                activeOpacity={0.8}
+              >
+                <Plus size={16} color={colors.textPrimary} />
+                <Text style={styles.addTagButtonText}>Add</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Quick Tag Suggestions */}
+            <View style={styles.quickTagsContainer}>
+              {SUGGESTED_TAGS.filter((s) => !tags.includes(s)).map((suggestion) => (
+                <TouchableOpacity
+                  key={suggestion}
+                  style={styles.quickTagPill}
+                  onPress={() => handleAddTag(suggestion)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.quickTagText}>+{suggestion}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
           {/* Note Input */}
           <View style={styles.inputGroup}>
             <Text style={styles.fieldLabel}>PERSONAL NOTE / WHY SAVE THIS?</Text>
@@ -268,6 +523,17 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     letterSpacing: 1.2,
   },
+  labelWithIcon: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: spacing.sm,
+  },
+  fieldLabelInline: {
+    ...typography.presets.tag,
+    color: colors.accent,
+    letterSpacing: 1.2,
+  },
   typeSelector: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -343,6 +609,181 @@ const styles = StyleSheet.create({
   durationPillTextActive: {
     color: colors.background,
   },
+  // Collections styles
+  collectionsScroll: {
+    gap: spacing.sm,
+    paddingVertical: 2,
+  },
+  collectionPill: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm + 2,
+    borderRadius: radii.pill,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: 'rgba(212, 196, 176, 0.3)',
+  },
+  collectionPillActive: {
+    backgroundColor: colors.textPrimary,
+    borderColor: colors.textPrimary,
+  },
+  collectionPillText: {
+    ...typography.presets.caption,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  collectionPillTextActive: {
+    color: colors.background,
+  },
+  newCollectionPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 2,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.accent,
+    borderStyle: 'dashed',
+    backgroundColor: 'transparent',
+  },
+  newCollectionPillText: {
+    ...typography.presets.caption,
+    color: colors.accent,
+    fontWeight: '600',
+  },
+  newCollectionInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  inlineInput: {
+    flex: 1,
+    height: 44,
+    backgroundColor: colors.card,
+    borderRadius: radii.pill,
+    paddingHorizontal: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.accent,
+    color: colors.textPrimary,
+    ...typography.presets.caption,
+  },
+  inlineCreateBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.textPrimary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  inlineCancelBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(212, 196, 176, 0.3)',
+  },
+  // Reminders styles
+  reminderRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  reminderPill: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.pill,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: 'rgba(212, 196, 176, 0.3)',
+  },
+  reminderPillActive: {
+    backgroundColor: colors.textPrimary,
+    borderColor: colors.textPrimary,
+  },
+  reminderPillText: {
+    ...typography.presets.caption,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  reminderPillTextActive: {
+    color: colors.background,
+  },
+  // Tags styles
+  activeTagsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  activeTagChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    borderRadius: radii.pill,
+    backgroundColor: 'rgba(212, 196, 176, 0.35)',
+    borderWidth: 1,
+    borderColor: 'rgba(212, 196, 176, 0.6)',
+  },
+  activeTagText: {
+    ...typography.presets.caption,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  tagInputRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  tagInput: {
+    flex: 1,
+    height: 46,
+    backgroundColor: colors.card,
+    borderRadius: radii.pill,
+    paddingHorizontal: spacing.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(212, 196, 176, 0.4)',
+    color: colors.textPrimary,
+    ...typography.presets.caption,
+  },
+  addTagButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing.lg,
+    height: 46,
+    borderRadius: radii.pill,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: 'rgba(212, 196, 176, 0.5)',
+  },
+  addTagButtonText: {
+    ...typography.presets.caption,
+    fontWeight: '600',
+    color: colors.textPrimary,
+  },
+  quickTagsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    marginTop: spacing.sm,
+  },
+  quickTagPill: {
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: 4,
+    borderRadius: radii.pill,
+    backgroundColor: 'rgba(212, 196, 176, 0.15)',
+  },
+  quickTagText: {
+    ...typography.presets.caption,
+    fontSize: 11,
+    color: colors.accent,
+  },
+  // Footer
   footer: {
     padding: spacing.xxl,
     borderTopWidth: 1,

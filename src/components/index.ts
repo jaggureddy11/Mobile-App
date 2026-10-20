@@ -4,3 +4,4 @@ export * from './TimeChip';
 export * from './ListItem';
 export * from './ActivityCard';
 export * from './UndoSnackbar';
+export * from './DoodleIllustrations';

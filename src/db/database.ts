@@ -29,18 +29,36 @@ export async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
       created_at TEXT NOT NULL,
       done_at TEXT,
       let_go_at TEXT,
-      resurfaced_at TEXT
+      resurfaced_at TEXT,
+      collection_id TEXT,
+      tags TEXT,
+      remind_interval TEXT,
+      remind_at TEXT
     );
 
     CREATE INDEX IF NOT EXISTS idx_items_status ON items(status);
     CREATE INDEX IF NOT EXISTS idx_items_minutes ON items(minutes);
     CREATE INDEX IF NOT EXISTS idx_items_created_at ON items(created_at);
+    CREATE INDEX IF NOT EXISTS idx_items_collection ON items(collection_id);
+
+    CREATE TABLE IF NOT EXISTS collections (
+      id TEXT PRIMARY KEY NOT NULL,
+      name TEXT NOT NULL,
+      color TEXT,
+      created_at TEXT NOT NULL
+    );
 
     CREATE TABLE IF NOT EXISTS settings (
       key TEXT PRIMARY KEY NOT NULL,
       value TEXT NOT NULL
     );
   `);
+
+  // Safe runtime migrations for existing databases
+  try { await db.execAsync('ALTER TABLE items ADD COLUMN collection_id TEXT;'); } catch {}
+  try { await db.execAsync('ALTER TABLE items ADD COLUMN tags TEXT;'); } catch {}
+  try { await db.execAsync('ALTER TABLE items ADD COLUMN remind_interval TEXT;'); } catch {}
+  try { await db.execAsync('ALTER TABLE items ADD COLUMN remind_at TEXT;'); } catch {}
 }
 
 /**

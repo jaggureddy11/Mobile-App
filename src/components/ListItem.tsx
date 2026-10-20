@@ -10,6 +10,8 @@ interface ListItemProps {
   title: string;
   meta: string;
   type: ItemType;
+  tags?: string[];
+  collectionName?: string;
   isDimmed?: boolean;
   onPress?: () => void;
 }
@@ -18,6 +20,8 @@ export const ListItem: React.FC<ListItemProps> = ({
   title,
   meta,
   type,
+  tags,
+  collectionName,
   isDimmed = false,
   onPress,
 }) => {
@@ -56,8 +60,17 @@ export const ListItem: React.FC<ListItemProps> = ({
           {title}
         </Text>
         <Text style={styles.meta} numberOfLines={1}>
-          {meta}
+          {collectionName ? `${collectionName} • ` : ''}{meta}
         </Text>
+        {tags && tags.length > 0 && (
+          <View style={styles.tagsRow}>
+            {tags.slice(0, 3).map((tag) => (
+              <View key={tag} style={styles.tagChip}>
+                <Text style={styles.tagText}>#{tag}</Text>
+              </View>
+            ))}
+          </View>
+        )}
       </View>
       <ChevronRight size={18} color={colors.accent} />
     </TouchableOpacity>
@@ -102,5 +115,22 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textTransform: 'none',
     letterSpacing: 0,
+  },
+  tagsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+    marginTop: 4,
+  },
+  tagChip: {
+    backgroundColor: 'rgba(212, 196, 176, 0.25)',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: radii.pill,
+  },
+  tagText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: colors.textSecondary,
   },
 });

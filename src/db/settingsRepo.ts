@@ -29,6 +29,8 @@ export const settingsRepo = {
       quiet_hours_start: settingsMap.get('quiet_hours_start') ?? DEFAULT_SETTINGS.quiet_hours_start,
       quiet_hours_end: settingsMap.get('quiet_hours_end') ?? DEFAULT_SETTINGS.quiet_hours_end,
       onboarding_completed: settingsMap.get('onboarding_completed') === 'true',
+      user_email: settingsMap.get('user_email') || null,
+      user_password: settingsMap.get('user_password') || null,
     };
   },
 
@@ -46,6 +48,8 @@ export const settingsRepo = {
       quiet_hours_start: settingsMap.get('quiet_hours_start') ?? DEFAULT_SETTINGS.quiet_hours_start,
       quiet_hours_end: settingsMap.get('quiet_hours_end') ?? DEFAULT_SETTINGS.quiet_hours_end,
       onboarding_completed: settingsMap.get('onboarding_completed') === 'true',
+      user_email: settingsMap.get('user_email') || null,
+      user_password: settingsMap.get('user_password') || null,
     };
 
     const updated: UserSettings = { ...current, ...settings };
