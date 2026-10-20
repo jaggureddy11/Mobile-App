@@ -57,7 +57,6 @@ export interface UserSettings {
   quiet_hours_end: string; // e.g., "08:00"
   onboarding_completed: boolean;
   user_email?: string | null;
-  user_password?: string | null;
   cloud_sync_enabled?: boolean;
   last_synced_at?: string | null;
   sync_endpoint?: string | null;
@@ -78,7 +77,6 @@ export const DEFAULT_SETTINGS: UserSettings = {
   quiet_hours_end: '08:00',
   onboarding_completed: true,
   user_email: null,
-  user_password: null,
   cloud_sync_enabled: true,
   last_synced_at: null,
   sync_endpoint: null,

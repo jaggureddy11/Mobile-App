@@ -63,6 +63,45 @@ export async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
   try { await db.execAsync('ALTER TABLE items ADD COLUMN remind_at TEXT;'); } catch {}
   try { await db.execAsync('ALTER TABLE items ADD COLUMN image_url TEXT;'); } catch {}
   try { await db.execAsync('ALTER TABLE items ADD COLUMN site_name TEXT;'); } catch {}
+
+  // Numbered Migration 001: Purge user_password data and rebuild settings table without column
+  await migratePurgePassword(db);
+}
+
+export async function migratePurgePassword(db: SQLite.SQLiteDatabase): Promise<void> {
+  try {
+    const tableInfo = await db.getAllAsync<{ name: string }>('PRAGMA table_info(settings);');
+    const hasCol = tableInfo.some((c) => c.name === 'user_password');
+    let hasRow = false;
+    try {
+      const checkRow = await db.getFirstAsync<{ count: number }>(
+        "SELECT count(*) as count FROM settings WHERE key = 'user_password'"
+      );
+      if (checkRow && checkRow.count > 0) hasRow = true;
+    } catch {}
+
+    if (hasCol || hasRow) {
+      if (hasCol) {
+        await db.execAsync('UPDATE settings SET user_password = NULL;');
+      }
+      if (hasRow) {
+        await db.execAsync("UPDATE settings SET value = '' WHERE key = 'user_password';");
+        await db.execAsync("DELETE FROM settings WHERE key = 'user_password';");
+      }
+      await db.execAsync(`
+        CREATE TABLE IF NOT EXISTS settings_clean (
+          key TEXT PRIMARY KEY NOT NULL,
+          value TEXT NOT NULL
+        );
+        INSERT OR REPLACE INTO settings_clean (key, value)
+          SELECT key, value FROM settings WHERE key != 'user_password' AND value IS NOT NULL;
+        DROP TABLE settings;
+        ALTER TABLE settings_clean RENAME TO settings;
+      `);
+    }
+  } catch (err) {
+    console.warn('Settings rebuild migration note:', err);
+  }
 }
 
 /**

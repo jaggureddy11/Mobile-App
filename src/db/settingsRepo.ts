@@ -30,7 +30,6 @@ export const settingsRepo = {
       quiet_hours_end: settingsMap.get('quiet_hours_end') ?? DEFAULT_SETTINGS.quiet_hours_end,
       onboarding_completed: settingsMap.get('onboarding_completed') === 'true',
       user_email: settingsMap.get('user_email') || null,
-      user_password: settingsMap.get('user_password') || null,
       cloud_sync_enabled: settingsMap.has('cloud_sync_enabled') ? settingsMap.get('cloud_sync_enabled') === 'true' : DEFAULT_SETTINGS.cloud_sync_enabled,
       last_synced_at: settingsMap.get('last_synced_at') || null,
       sync_endpoint: settingsMap.get('sync_endpoint') || null,
@@ -52,7 +51,6 @@ export const settingsRepo = {
       quiet_hours_end: settingsMap.get('quiet_hours_end') ?? DEFAULT_SETTINGS.quiet_hours_end,
       onboarding_completed: settingsMap.get('onboarding_completed') === 'true',
       user_email: settingsMap.get('user_email') || null,
-      user_password: settingsMap.get('user_password') || null,
       cloud_sync_enabled: settingsMap.has('cloud_sync_enabled') ? settingsMap.get('cloud_sync_enabled') === 'true' : DEFAULT_SETTINGS.cloud_sync_enabled,
       last_synced_at: settingsMap.get('last_synced_at') || null,
       sync_endpoint: settingsMap.get('sync_endpoint') || null,
@@ -61,7 +59,10 @@ export const settingsRepo = {
     const updated: UserSettings = { ...current, ...settings };
 
     await db.withTransactionAsync(async () => {
+      // Ensure no password or sensitive secrets ever persist in settings
+      await db.runAsync("DELETE FROM settings WHERE key = 'user_password'");
       for (const [key, value] of Object.entries(updated)) {
+        if (key === 'user_password') continue;
         await db.runAsync(
           'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
           [key, String(value)]

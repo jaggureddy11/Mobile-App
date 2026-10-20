@@ -59,7 +59,6 @@ export default function OnboardingScreen() {
       await updateSettings({
         nudge_frequency: frequency,
         user_email: email.trim() || null,
-        user_password: password || null,
       });
       await completeOnboarding();
       router.replace('/(tabs)/today');
