@@ -48,7 +48,27 @@ npx eas build --profile production --platform all
 
 ## 4. Pre-Submission Verification Protocol
 Before submitting to Apple App Store or Google Play:
-1. **Automated Suite**: Run `npm test` (all 19 suites / 224 tests must pass).
+1. **Automated Suite**: Run `npm test` (all test suites must pass).
 2. **Typecheck**: Run `npx tsc --noEmit` (clean exit, 0 errors).
 3. **Hardware Matrix**: Complete every row in [TESTING.md](file:///Users/apple/Desktop/PROJECTS/Later%20app/TESTING.md) on physical iOS and Android hardware.
 4. **App Store Connect**: Ensure App Group `group.com.remind.app` is provisioned in the Apple Developer portal for the Share Extension.
+
+---
+
+## 5. Store Submission Privacy & Data Safety Answer Sheets
+
+### Apple App Store Connect — App Privacy
+| Question | Answer | Notes |
+| :--- | :--- | :--- |
+| **Do you or third-party partners collect data from this app?** | **No** | Re:Mind is 100% offline-first. No user data, analytics, or diagnostics leave the device. |
+| **Tracking** | **Does not track** | App does not use IDFA, advertising IDs, or tracking SDKs. |
+| **Data Types Collected** | **None** | No Contact Info, Health, Financial, Location, User Content, Browsing History, Identifiers, Usage Data, Diagnostics, or Other Data is collected. |
+
+### Google Play Console — Data Safety
+| Question | Answer | Notes |
+| :--- | :--- | :--- |
+| **Does your app collect or share any user data?** | **No** | App does not transmit or share any user data to remote servers or third parties. |
+| **Is all user data collected encrypted in transit?** | **N/A** | No data is collected or transmitted. |
+| **Does the app provide a way for users to delete data?** | **Yes** | Users can purge discarded items or delete the app to immediately erase local SQLite storage. |
+| **Data Types Shared or Collected** | **None** | No location, personal info, financial info, health, messages, photos/videos, audio, files, calendar, contacts, app activity, web browsing, or app performance data is collected or shared. |
+

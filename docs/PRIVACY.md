@@ -2,33 +2,34 @@
 
 *Last updated: October 2026*
 
-Re:Mind is designed with a strict **offline-first, zero-telemetry** privacy model. We believe your saved articles, reels, thoughts, and habits are private and belong only to you.
+Re:Mind is built on a simple foundation: **your saved items, notes, and habits belong to you, and stay on your device.** We do not run a server, we do not have user accounts, and we collect zero data about you.
 
 ---
 
-### 1. Data Stays on Your Device
-- All items, notes, tags, timestamps, surface events, collections, and preferences are stored exclusively in a local SQLite database on your device (`maybe_later.db`).
-- There is no central database, no user tracking, and your data is never uploaded to any remote server or company infrastructure.
+### 1. No Data is Sent to the Developer
+- **Zero telemetry & zero tracking:** We do not collect, transmit, store, or sell any data about you or your use of the app. The developer never receives your saved items, notes, URLs, usage habits, device identifiers, or IP address.
+- **No analytics or tracking SDKs:** The app contains no third-party tracking or analytics SDKs (such as Google Analytics, Firebase, Amplitude, or Mixpanel).
+- **No silent crash reporters:** The app contains no third-party crash reporting software (such as Sentry or Bugsnag) transmitting diagnostic data in the background.
 
-### 2. No Accounts or Profiles
-- Re:Mind requires no registration, no login, no email address, and no passwords.
-- You can use the app completely anonymously without providing any personally identifying information.
+### 2. Everything Stays on Your Device
+- All your saved items, notes, tags, categories, surface events, and settings are saved exclusively in a local database stored inside your device's private sandbox storage (`maybe_later.db`).
+- If you delete the app or clear its data, all stored items are permanently erased from your device.
 
-### 3. No Analytics & No Third-Party Crash Reporting
-- There are **no analytics SDKs** (such as Google Analytics, Segment, Amplitude, or Mixpanel) bundled in the application.
-- There are **no third-party crash reporting tools** (such as Sentry, Bugsnag, or Firebase Crashlytics).
-- In the event of a runtime error, a sanitized error entry (containing only the error type, screen name, and timestamp) is stored in a capped in-memory buffer (maximum 50 entries) on your device. It never records URLs, item titles, notes, or user input, and is only exported if you deliberately tap "Copy debug info" in Settings.
+### 3. Link Previews Connect Directly to the Saved Site
+- When you save or share a web link into Re:Mind, your device makes a direct network request (`GET`) to that specific website to fetch its public title, site name, and preview image—exactly as if you opened that website in your web browser.
+- These requests go straight from your device to the target website. No intermediary servers, proxies, or developer services are involved.
 
-### 4. External Network Requests
-The app operates 100% offline. The only network connections made by the app are direct interactions you initiate:
-1. **Title & Preview Fetching (Metadata Scraping)**: When you save a URL, the app performs a direct `GET` HTTP request from your device to the target website to fetch the public page title, site name, and preview image. No intermediaries or proxy servers are used.
-2. **Opening Saved Links**: When you tap "Open Link" or "Do It", the app opens the URL directly in your system default browser or in-app browser (`expo-web-browser`).
+### 4. Debug Logs Are Shared Only If You Tap "Copy debug info"
+- If an unexpected error occurs while running the app, a sanitized error record is kept in a local log on your device (capped at the last 50 entries).
+- **Strict privacy protection:** The log records only the technical error type (e.g. `TypeError`, `DiskError`), the current screen name, and a timestamp. It is mathematically and programmatically prohibited from recording raw error messages, URLs, notes, item titles, or personal content.
+- This log is never sent anywhere automatically. It is shared only if you deliberately open **Settings** and tap **"Copy debug info"** to paste it into an email or support message.
 
-### 5. Notifications & Permissions
-- Notification scheduling is handled entirely on-device by iOS and Android local notification managers.
-- No push notification servers or device tokens are transmitted to external services.
-- If you deny notification permission, the app functions completely without them.
+### 5. No Accounts, Passwords, or Logins
+- Re:Mind requires no email, password, social login, or telephone number. You use the entire app anonymously from day one.
 
-### 6. Data Export & Deletion
-- You can export all your saved items at any time as an unencrypted, standard CSV file via **Settings > Export your data**.
-- You can purge discarded items or delete the application to immediately erase all local data.
+### 6. Notifications Stay Local
+- Daily reminders and nudges are scheduled and managed entirely by your phone's operating system (iOS Local Notifications and Android Alarm Manager). No push notification servers or external tokens are used.
+
+### 7. Exporting and Deleting Your Data
+- You can export all your saved items at any time into a standard, readable CSV file using **Settings > Export your data**.
+- You can remove individual items, purge discarded items at will, or uninstall the app to delete everything instantly.
