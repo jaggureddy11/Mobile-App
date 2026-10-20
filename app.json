@@ -17,7 +17,8 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#FBF9F6",
-        "foregroundImage": "./assets/images/android-icon-foreground.png"
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "package": "com.remind.app",
       "predictiveBackGestureEnabled": false
