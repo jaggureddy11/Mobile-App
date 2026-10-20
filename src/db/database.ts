@@ -43,6 +43,11 @@ export async function retryDatabaseInitialization(customDb?: SQLite.SQLiteDataba
   const targetDb = customDb || dbInstance || (await SQLite.openDatabaseAsync(DATABASE_NAME));
   dbInstance = targetDb;
   await initSchema(targetDb);
+  // Flush in-memory debug logs to SQLite after successful initialization / retry
+  try {
+    const { debugLogger } = require('../utils/debugLogger');
+    await debugLogger.persist();
+  } catch {}
 }
 
 /**
@@ -52,12 +57,14 @@ export async function retryDatabaseInitialization(customDb?: SQLite.SQLiteDataba
  */
 async function runExclusiveTransaction(
   db: SQLite.SQLiteDatabase,
-  action: () => Promise<void>
+  action: (txn: SQLite.SQLiteDatabase) => Promise<void>
 ): Promise<void> {
   if (typeof (db as any).withExclusiveTransactionAsync === 'function') {
     return await (db as any).withExclusiveTransactionAsync(action);
   }
-  return await db.withTransactionAsync(action);
+  return await db.withTransactionAsync(async () => {
+    await action(db);
+  });
 }
 
 export async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
@@ -170,12 +177,10 @@ export async function backfillNormalizedUrls(db: SQLite.SQLiteDatabase): Promise
       WHERE url IS NOT NULL AND TRIM(url) != '' AND (normalized_url IS NULL OR TRIM(normalized_url) = '');
     `);
     if (rows && rows.length > 0) {
-      await db.withTransactionAsync(async () => {
-        for (const row of rows) {
-          const normalized = normalizeUrl(row.url) || null;
-          await db.runAsync('UPDATE items SET normalized_url = ? WHERE id = ?', [normalized, row.id]);
-        }
-      });
+      for (const row of rows) {
+        const normalized = normalizeUrl(row.url) || null;
+        await db.runAsync('UPDATE items SET normalized_url = ? WHERE id = ?', [normalized, row.id]);
+      }
       return rows.length;
     }
   } catch (err: any) {
@@ -224,18 +229,18 @@ export async function detectAndReportUrlDuplicates(db: SQLite.SQLiteDatabase): P
 
 export async function migrateUrlIndex(db: SQLite.SQLiteDatabase): Promise<void> {
   try {
-    await runExclusiveTransaction(db, async () => {
-      // 1. Backfill existing items with normalized_url
-      await backfillNormalizedUrls(db);
+    await runExclusiveTransaction(db, async (txn) => {
+      // 1. Backfill existing items with normalized_url using txn
+      await backfillNormalizedUrls(txn);
 
-      // 2. Ensure general lookup index exists on normalized_url
-      await db.execAsync('CREATE INDEX IF NOT EXISTS idx_items_normalized_url ON items(normalized_url);');
+      // 2. Ensure general lookup index exists on normalized_url using txn
+      await txn.execAsync('CREATE INDEX IF NOT EXISTS idx_items_normalized_url ON items(normalized_url);');
 
-      // 3. Check for duplicate groups
-      const duplicateGroups = await detectAndReportNormalizedUrlDuplicates(db);
+      // 3. Check for duplicate groups using txn
+      const duplicateGroups = await detectAndReportNormalizedUrlDuplicates(txn);
 
       if (duplicateGroups.length === 0) {
-        await db.execAsync(`
+        await txn.execAsync(`
           CREATE UNIQUE INDEX IF NOT EXISTS idx_items_unique_url
           ON items(normalized_url)
           WHERE normalized_url IS NOT NULL AND TRIM(normalized_url) != '' AND status = 'pending';
@@ -281,8 +286,8 @@ export async function migrateMergedIntoColumn(db: SQLite.SQLiteDatabase): Promis
     const tableInfo = await db.getAllAsync<{ name: string }>('PRAGMA table_info(items);');
     const hasCol = tableInfo.some((c) => c.name === 'merged_into');
     if (!hasCol) {
-      await runExclusiveTransaction(db, async () => {
-        await db.execAsync('ALTER TABLE items ADD COLUMN merged_into TEXT;');
+      await runExclusiveTransaction(db, async (txn) => {
+        await txn.execAsync('ALTER TABLE items ADD COLUMN merged_into TEXT;');
       });
     }
   } catch (err: any) {
@@ -304,15 +309,15 @@ export async function migratePurgePassword(db: SQLite.SQLiteDatabase): Promise<v
     } catch {}
 
     if (hasCol || hasRow) {
-      await runExclusiveTransaction(db, async () => {
+      await runExclusiveTransaction(db, async (txn) => {
         if (hasCol) {
-          await db.execAsync('UPDATE settings SET user_password = NULL;');
+          await txn.execAsync('UPDATE settings SET user_password = NULL;');
         }
         if (hasRow) {
-          await db.execAsync("UPDATE settings SET value = '' WHERE key = 'user_password';");
-          await db.execAsync("DELETE FROM settings WHERE key = 'user_password';");
+          await txn.execAsync("UPDATE settings SET value = '' WHERE key = 'user_password';");
+          await txn.execAsync("DELETE FROM settings WHERE key = 'user_password';");
         }
-        await db.execAsync(`
+        await txn.execAsync(`
           CREATE TABLE IF NOT EXISTS settings_clean (
             key TEXT PRIMARY KEY NOT NULL,
             value TEXT NOT NULL
