@@ -4,11 +4,13 @@ import { useRouter } from 'expo-router';
 import { User, ArrowLeft, Heart, CheckCircle2, Clock, X } from 'lucide-react-native';
 import { colors, typography, spacing, radii, shadows } from '@/theme';
 import { useItemsStore } from '@/domain/useItemsStore';
+import { ReMindLogo } from './ReMindLogo';
 
 interface PageHeaderProps {
   title?: string;
   subtitle?: string;
   categoryTag?: string;
+  showLogo?: boolean;
   showBack?: boolean;
   showSettingsButton?: boolean;
   showActivityButton?: boolean;
@@ -17,9 +19,10 @@ interface PageHeaderProps {
 }
 
 export const PageHeader: React.FC<PageHeaderProps> = ({
-  title = 'Hi friend,\ntake a breather.',
+  title,
   subtitle,
-  categoryTag = 'RE:MIND',
+  categoryTag,
+  showLogo,
   showBack = false,
   showSettingsButton = true,
   showActivityButton = true,
@@ -29,6 +32,10 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
   const router = useRouter();
   const [showActivityModal, setShowActivityModal] = useState(false);
   const items = useItemsStore((state) => state.items);
+
+  // If no title/back button provided, this is the main home header
+  const isHomeHeader = !showBack && !categoryTag && (!title || title === 'Hi friend,\ntake a breather.');
+  const displayTitle = title || (isHomeHeader ? '' : 'Hi friend,\ntake a breather.');
 
   // Recent completed items and let-go activities
   const recentCompleted = items
@@ -63,11 +70,26 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
         ) : null}
 
         <View style={styles.textContainer}>
-          {categoryTag ? (
-            <Text style={styles.categoryTag}>{categoryTag}</Text>
-          ) : null}
-          <Text style={styles.title}>{title}</Text>
-          {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+          {showLogo || isHomeHeader ? (
+            <View style={styles.logoTitleGroup}>
+              <ReMindLogo size="lg" />
+              <Text style={styles.logoSubtitle}>
+                {subtitle || 'Hi friend, take a breather.'}
+              </Text>
+            </View>
+          ) : (
+            <>
+              {categoryTag === 'RE:MIND' || categoryTag === 'Re:Mind' ? (
+                <View style={styles.logoBadgeContainer}>
+                  <ReMindLogo size="xs" />
+                </View>
+              ) : categoryTag ? (
+                <Text style={styles.categoryTag}>{categoryTag}</Text>
+              ) : null}
+              {displayTitle ? <Text style={styles.title}>{displayTitle}</Text> : null}
+              {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+            </>
+          )}
         </View>
 
         {rightAction ? (
@@ -181,6 +203,17 @@ const styles = StyleSheet.create({
   textContainer: {
     flex: 1,
     justifyContent: 'center',
+  },
+  logoTitleGroup: {
+    justifyContent: 'center',
+  },
+  logoSubtitle: {
+    ...typography.presets.bodySmall,
+    color: colors.textSecondary,
+    marginTop: 4,
+  },
+  logoBadgeContainer: {
+    marginBottom: spacing.xs,
   },
   categoryTag: {
     ...typography.presets.tag,

@@ -15,6 +15,7 @@ import Svg, { Circle, Path, G } from 'react-native-svg';
 import { colors, typography, spacing } from '@/theme';
 import { useSettingsStore } from '@/domain/useSettingsStore';
 import { useItemsStore } from '@/domain/useItemsStore';
+import { ReMindLogo } from '@/components';
 
 const { width } = Dimensions.get('window');
 
@@ -211,7 +212,7 @@ export default function SplashScreen() {
 
         {/* Brand Title & Typography */}
         <Animated.View style={[styles.brandContainer, textAnimatedStyle]}>
-          <Text style={styles.brandTitle}>Re:Mind</Text>
+          <ReMindLogo size="xl" />
           <View style={styles.titleDivider} />
         </Animated.View>
 
