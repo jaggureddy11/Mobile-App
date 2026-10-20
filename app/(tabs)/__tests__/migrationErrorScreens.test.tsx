@@ -89,6 +89,30 @@ describe('Migration Error Notice on Tab Screens', () => {
       // Must NOT show normal empty state
       expect(screen.queryByText('Nothing saved yet')).toBeNull();
     });
+
+    it('retrying invokes retryDatabaseInitialization exactly once on tap, not on mount', async () => {
+      databaseModule.setStartupMigrationError('Transient lock error on today');
+      const retrySpy = jest.spyOn(databaseModule, 'retryDatabaseInitialization').mockImplementation(async () => {
+        databaseModule.setStartupMigrationError(null);
+      });
+
+      const screen = await render(<TodayScreen />);
+      expect(screen.getByTestId('database-update-notice')).toBeTruthy();
+
+      // Must NOT be called yet — DatabaseUpdateNotice must not trigger retry on mount.
+      expect(retrySpy).toHaveBeenCalledTimes(0);
+
+      await act(async () => {
+        fireEvent.press(screen.getByTestId('retry-loading-button'));
+      });
+
+      // Must be called exactly once after the tap — not twice.
+      expect(retrySpy).toHaveBeenCalledTimes(1);
+      expect(screen.queryByTestId('database-update-notice')).toBeNull();
+      expect(screen.getByText('Nothing saved yet')).toBeTruthy();
+
+      retrySpy.mockRestore();
+    });
   });
 
   describe('SavedScreen (Saved Items and Collections)', () => {
@@ -110,6 +134,59 @@ describe('Migration Error Notice on Tab Screens', () => {
       expect(screen.getByText('Retry loading')).toBeTruthy();
       // Normal switcher tabs must not be visible while database is in error
       expect(screen.queryByText('All Items')).toBeNull();
+    });
+
+    it('retrying invokes retryDatabaseInitialization exactly once on tap from saved items view', async () => {
+      databaseModule.setStartupMigrationError('Disk I/O error during migration');
+      const retrySpy = jest.spyOn(databaseModule, 'retryDatabaseInitialization').mockImplementation(async () => {
+        databaseModule.setStartupMigrationError(null);
+      });
+
+      const screen = await render(<SavedScreen />);
+      expect(screen.getByTestId('database-update-notice')).toBeTruthy();
+
+      // Must NOT be called yet on render
+      expect(retrySpy).toHaveBeenCalledTimes(0);
+
+      await act(async () => {
+        fireEvent.press(screen.getByTestId('retry-loading-button'));
+      });
+
+      // Must be called exactly once
+      expect(retrySpy).toHaveBeenCalledTimes(1);
+      expect(screen.queryByTestId('database-update-notice')).toBeNull();
+      expect(screen.getByText('All Items')).toBeTruthy();
+
+      retrySpy.mockRestore();
+    });
+
+    it('retrying recovers database and restores collections view access', async () => {
+      databaseModule.setStartupMigrationError('Migration failure on collections');
+      const retrySpy = jest.spyOn(databaseModule, 'retryDatabaseInitialization').mockImplementation(async () => {
+        databaseModule.setStartupMigrationError(null);
+      });
+
+      const screen = await render(<SavedScreen />);
+      expect(screen.getByTestId('database-update-notice')).toBeTruthy();
+
+      // Must NOT be called on render
+      expect(retrySpy).toHaveBeenCalledTimes(0);
+
+      await act(async () => {
+        fireEvent.press(screen.getByTestId('retry-loading-button'));
+      });
+
+      // Exactly once after tap
+      expect(retrySpy).toHaveBeenCalledTimes(1);
+      expect(screen.queryByTestId('database-update-notice')).toBeNull();
+
+      // Switch to Collections tab to verify collections view is accessible after recovery
+      await act(async () => {
+        fireEvent.press(screen.getByText(/Collections/));
+      });
+      expect(screen.getByText('New Collection')).toBeTruthy();
+
+      retrySpy.mockRestore();
     });
   });
 
