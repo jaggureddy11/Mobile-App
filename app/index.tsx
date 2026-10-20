@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, TouchableOpacity, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import Animated, {
   useSharedValue,
@@ -180,33 +180,13 @@ export default function SplashScreen() {
             </Svg>
           </Animated.View>
 
-          {/* Center Geometric Emblem */}
+          {/* Center Brand App Icon */}
           <Animated.View style={[styles.centerEmblem, logoAnimatedStyle]}>
-            <Svg width={96} height={96} viewBox="0 0 96 96" fill="none">
-              <Circle cx="48" cy="48" r="44" fill={colors.card} />
-              <Circle cx="48" cy="48" r="44" stroke="rgba(212, 196, 176, 0.4)" strokeWidth="1.5" />
-              
-              {/* Calm Compass/Hourglass minimal lines */}
-              <Path
-                d="M48 24 L48 72"
-                stroke={colors.textPrimary}
-                strokeWidth="2.5"
-                strokeLinecap="round"
-              />
-              <Path
-                d="M32 38 L64 38"
-                stroke={colors.accent}
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
-              <Path
-                d="M36 58 L60 58"
-                stroke={colors.accent}
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
-              <Circle cx="48" cy="48" r="5" fill={colors.textPrimary} />
-            </Svg>
+            <Image
+              source={require('../assets/images/icon.png')}
+              style={styles.appIconImage}
+              resizeMode="cover"
+            />
           </Animated.View>
         </View>
 
@@ -278,6 +258,11 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.08,
     shadowRadius: 14,
+  },
+  appIconImage: {
+    width: 88,
+    height: 88,
+    borderRadius: 22,
   },
   brandContainer: {
     alignItems: 'center',
