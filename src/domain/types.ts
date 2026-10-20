@@ -30,6 +30,8 @@ export interface Item {
   tags?: string[];
   remind_interval?: RemindInterval | null;
   remind_at?: string | null;
+  image_url?: string | null;
+  site_name?: string | null;
 }
 
 export type CreateItemInput = {
@@ -42,6 +44,8 @@ export type CreateItemInput = {
   tags?: string[];
   remind_interval?: RemindInterval | null;
   remind_at?: string | null;
+  image_url?: string | null;
+  site_name?: string | null;
 };
 
 export type NudgeFrequency = 'daily' | 'weekly' | 'never';
@@ -54,6 +58,9 @@ export interface UserSettings {
   onboarding_completed: boolean;
   user_email?: string | null;
   user_password?: string | null;
+  cloud_sync_enabled?: boolean;
+  last_synced_at?: string | null;
+  sync_endpoint?: string | null;
 }
 
 export const DEFAULT_ITEM_MINUTES: Record<ItemType, MinuteOption> = {
@@ -72,4 +79,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   onboarding_completed: true,
   user_email: null,
   user_password: null,
+  cloud_sync_enabled: true,
+  last_synced_at: null,
+  sync_endpoint: null,
 };

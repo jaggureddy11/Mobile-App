@@ -31,6 +31,9 @@ export const settingsRepo = {
       onboarding_completed: settingsMap.get('onboarding_completed') === 'true',
       user_email: settingsMap.get('user_email') || null,
       user_password: settingsMap.get('user_password') || null,
+      cloud_sync_enabled: settingsMap.has('cloud_sync_enabled') ? settingsMap.get('cloud_sync_enabled') === 'true' : DEFAULT_SETTINGS.cloud_sync_enabled,
+      last_synced_at: settingsMap.get('last_synced_at') || null,
+      sync_endpoint: settingsMap.get('sync_endpoint') || null,
     };
   },
 
@@ -50,6 +53,9 @@ export const settingsRepo = {
       onboarding_completed: settingsMap.get('onboarding_completed') === 'true',
       user_email: settingsMap.get('user_email') || null,
       user_password: settingsMap.get('user_password') || null,
+      cloud_sync_enabled: settingsMap.has('cloud_sync_enabled') ? settingsMap.get('cloud_sync_enabled') === 'true' : DEFAULT_SETTINGS.cloud_sync_enabled,
+      last_synced_at: settingsMap.get('last_synced_at') || null,
+      sync_endpoint: settingsMap.get('sync_endpoint') || null,
     };
 
     const updated: UserSettings = { ...current, ...settings };

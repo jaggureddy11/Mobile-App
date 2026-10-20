@@ -250,6 +250,8 @@ export default function SavedScreen() {
                       meta={`${item.type.charAt(0).toUpperCase() + item.type.slice(1)} • ${item.minutes} min`}
                       tags={item.tags}
                       collectionName={item.collection_id ? collectionNameMap.get(item.collection_id) : undefined}
+                      imageUrl={item.image_url}
+                      siteName={item.site_name}
                       isDimmed={item.status === 'done'}
                       onPress={() => router.push(`/item/${item.id}`)}
                     />
@@ -351,6 +353,8 @@ export default function SavedScreen() {
                     title={item.title}
                     meta={`${item.type.charAt(0).toUpperCase() + item.type.slice(1)} • ${item.minutes} min`}
                     tags={item.tags}
+                    imageUrl={item.image_url}
+                    siteName={item.site_name}
                     isDimmed={item.status === 'done'}
                     onPress={() => router.push(`/item/${item.id}`)}
                   />

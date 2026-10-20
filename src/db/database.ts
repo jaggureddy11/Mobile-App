@@ -33,7 +33,9 @@ export async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
       collection_id TEXT,
       tags TEXT,
       remind_interval TEXT,
-      remind_at TEXT
+      remind_at TEXT,
+      image_url TEXT,
+      site_name TEXT
     );
 
     CREATE INDEX IF NOT EXISTS idx_items_status ON items(status);
@@ -59,6 +61,8 @@ export async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
   try { await db.execAsync('ALTER TABLE items ADD COLUMN tags TEXT;'); } catch {}
   try { await db.execAsync('ALTER TABLE items ADD COLUMN remind_interval TEXT;'); } catch {}
   try { await db.execAsync('ALTER TABLE items ADD COLUMN remind_at TEXT;'); } catch {}
+  try { await db.execAsync('ALTER TABLE items ADD COLUMN image_url TEXT;'); } catch {}
+  try { await db.execAsync('ALTER TABLE items ADD COLUMN site_name TEXT;'); } catch {}
 }
 
 /**

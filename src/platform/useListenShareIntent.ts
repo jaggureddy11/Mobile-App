@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useShareIntent } from 'expo-share-intent';
 import { useItemsStore } from '../domain/useItemsStore';
 import { ItemType, DEFAULT_ITEM_MINUTES } from '../domain/types';
+import { fetchUrlMetadata } from './metadataScraper';
 
 export function detectItemTypeFromUrl(url: string): ItemType {
   const lower = url.toLowerCase();
@@ -26,28 +27,60 @@ export function useListenShareIntent() {
   useEffect(() => {
     if (!hasShareIntent || !shareIntent) return;
 
-    const rawText = shareIntent.text || '';
-    const webUrl = shareIntent.webUrl || (rawText.startsWith('http') ? rawText : '');
-    const title = shareIntent.meta?.title || (webUrl ? (shareIntent.meta?.title || rawText) : rawText);
+    let isMounted = true;
+    const processShare = async () => {
+      const rawText = shareIntent.text || '';
+      const webUrl = shareIntent.webUrl || (rawText.startsWith('http') ? rawText : '');
+      let title = shareIntent.meta?.title || (webUrl ? (shareIntent.meta?.title || rawText) : rawText);
+      let imageUrl: string | undefined;
+      let siteName: string | undefined;
 
-    if (title || webUrl) {
-      const type: ItemType = webUrl ? detectItemTypeFromUrl(webUrl) : 'text';
-      const cleanTitle = title?.trim() || (type === 'reel' ? 'Shared Reel' : 'Shared Link');
+      if (webUrl) {
+        // Attempt quick metadata scrape (times out gracefully after 4s)
+        try {
+          const meta = await fetchUrlMetadata(webUrl);
+          if (meta) {
+            if (meta.title && (!title || title === webUrl)) {
+              title = meta.title;
+            }
+            imageUrl = meta.imageUrl;
+            siteName = meta.siteName;
+          }
+        } catch {
+          // Keep offline resilience
+        }
+      }
 
-      addItem({
-        type,
-        title: cleanTitle,
-        url: webUrl || null,
-        note: null,
-        minutes: DEFAULT_ITEM_MINUTES[type],
-      }).then(() => {
+      if (!isMounted) return;
+
+      if (title || webUrl) {
+        const type: ItemType = webUrl ? detectItemTypeFromUrl(webUrl) : 'text';
+        const cleanTitle = title?.trim() || (type === 'reel' ? 'Shared Reel' : 'Shared Link');
+
+        try {
+          await addItem({
+            type,
+            title: cleanTitle,
+            url: webUrl || null,
+            note: null,
+            minutes: DEFAULT_ITEM_MINUTES[type],
+            image_url: imageUrl || null,
+            site_name: siteName || null,
+          });
+        } catch (err) {
+          console.error('Failed to save shared intent:', err);
+        } finally {
+          resetShareIntent();
+        }
+      } else {
         resetShareIntent();
-      }).catch((err) => {
-        console.error('Failed to save shared intent:', err);
-        resetShareIntent();
-      });
-    } else {
-      resetShareIntent();
-    }
+      }
+    };
+
+    processShare();
+
+    return () => {
+      isMounted = false;
+    };
   }, [hasShareIntent, shareIntent, addItem, resetShareIntent]);
 }

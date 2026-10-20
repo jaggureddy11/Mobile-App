@@ -77,11 +77,13 @@ export const itemsRepo = {
       tags: input.tags || [],
       remind_interval: input.remind_interval || 'none',
       remind_at: remindAt,
+      image_url: input.image_url ?? null,
+      site_name: input.site_name ?? null,
     };
 
     await db.runAsync(
-      `INSERT INTO items (id, type, title, url, note, minutes, status, created_at, done_at, let_go_at, resurfaced_at, collection_id, tags, remind_interval, remind_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO items (id, type, title, url, note, minutes, status, created_at, done_at, let_go_at, resurfaced_at, collection_id, tags, remind_interval, remind_at, image_url, site_name)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         newItem.id,
         newItem.type,
@@ -98,6 +100,8 @@ export const itemsRepo = {
         tagsJson,
         newItem.remind_interval ?? null,
         newItem.remind_at ?? null,
+        newItem.image_url ?? null,
+        newItem.site_name ?? null,
       ]
     );
 

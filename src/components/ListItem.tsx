@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { Link2, PlayCircle, FileText, CheckSquare, Compass, ChevronRight } from 'lucide-react-native';
 import { colors, typography, spacing, radii } from '@/theme';
 
@@ -12,6 +12,8 @@ interface ListItemProps {
   type: ItemType;
   tags?: string[];
   collectionName?: string;
+  imageUrl?: string | null;
+  siteName?: string | null;
   isDimmed?: boolean;
   onPress?: () => void;
 }
@@ -22,10 +24,22 @@ export const ListItem: React.FC<ListItemProps> = ({
   type,
   tags,
   collectionName,
+  imageUrl,
+  siteName,
   isDimmed = false,
   onPress,
 }) => {
   const renderIcon = () => {
+    if (imageUrl) {
+      return (
+        <Image
+          source={{ uri: imageUrl }}
+          style={styles.thumbnail}
+          resizeMode="cover"
+        />
+      );
+    }
+
     switch (type) {
       case 'reel':
         return <PlayCircle size={22} color={colors.accent} />;
@@ -60,7 +74,7 @@ export const ListItem: React.FC<ListItemProps> = ({
           {title}
         </Text>
         <Text style={styles.meta} numberOfLines={1}>
-          {collectionName ? `${collectionName} • ` : ''}{meta}
+          {siteName ? `${siteName} • ` : collectionName ? `${collectionName} • ` : ''}{meta}
         </Text>
         {tags && tags.length > 0 && (
           <View style={styles.tagsRow}>
@@ -99,6 +113,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.md,
+    overflow: 'hidden',
+  },
+  thumbnail: {
+    width: '100%',
+    height: '100%',
+    borderRadius: radii.md,
   },
   textContainer: {
     flex: 1,

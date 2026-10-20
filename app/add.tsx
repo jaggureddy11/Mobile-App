@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Image,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
@@ -23,12 +25,15 @@ import {
   Bell,
   Tag as TagIcon,
   Check,
+  Globe,
+  Sparkles,
 } from 'lucide-react-native';
 import { colors, typography, spacing, radii, shadows } from '@/theme';
 import { useItemsStore } from '@/domain/useItemsStore';
 import { useCollectionsStore } from '@/domain/useCollectionsStore';
 import { ItemType, MinuteOption, RemindInterval, DEFAULT_ITEM_MINUTES } from '@/domain/types';
 import { detectItemTypeFromUrl } from '@/platform/useListenShareIntent';
+import { fetchUrlMetadata, UrlMetadata } from '@/platform/metadataScraper';
 
 const TYPE_OPTIONS: { type: ItemType; label: string; icon: React.ComponentType<{ size: number; color: string }> }[] = [
   { type: 'link', label: 'Link', icon: Link2 },
@@ -65,6 +70,11 @@ export default function AddModal() {
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
   
+  // URL Metadata scraping state
+  const [isScraping, setIsScraping] = useState(false);
+  const [metadata, setMetadata] = useState<UrlMetadata | null>(null);
+  const scrapeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Inline collection creation state
   const [isCreatingCollection, setIsCreatingCollection] = useState(false);
   const [newCollectionName, setNewCollectionName] = useState('');
@@ -73,15 +83,53 @@ export default function AddModal() {
 
   useEffect(() => {
     loadCollections();
+    return () => {
+      if (scrapeTimeoutRef.current) clearTimeout(scrapeTimeoutRef.current);
+    };
   }, []);
 
-  // Auto-detect type when URL changes
+  const triggerMetadataScrape = (targetUrl: string) => {
+    const trimmed = targetUrl.trim();
+    if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
+      setMetadata(null);
+      return;
+    }
+
+    if (scrapeTimeoutRef.current) {
+      clearTimeout(scrapeTimeoutRef.current);
+    }
+
+    scrapeTimeoutRef.current = setTimeout(async () => {
+      setIsScraping(true);
+      try {
+        const meta = await fetchUrlMetadata(trimmed);
+        if (meta) {
+          setMetadata(meta);
+          // If title is still empty, automatically set it to the scraped title
+          setTitle((prev) => (!prev.trim() && meta.title ? meta.title : prev));
+          // If description exists and note is empty, provide a subtle suggestion or fill
+          if (meta.description && !note.trim()) {
+            setNote(meta.description.slice(0, 200));
+          }
+        }
+      } catch {
+        // Safe offline resilience
+      } finally {
+        setIsScraping(false);
+      }
+    }, 600);
+  };
+
+  // Auto-detect type when URL changes and trigger scraping
   const handleUrlChange = (text: string) => {
     setUrl(text);
     if (text.trim().startsWith('http')) {
       const detected = detectItemTypeFromUrl(text.trim());
       setSelectedType(detected);
       setSelectedMinutes(DEFAULT_ITEM_MINUTES[detected]);
+      triggerMetadataScrape(text);
+    } else {
+      setMetadata(null);
     }
   };
 
@@ -129,6 +177,8 @@ export default function AddModal() {
         collection_id: selectedCollectionId,
         tags,
         remind_interval: selectedReminder,
+        image_url: metadata?.imageUrl || null,
+        site_name: metadata?.siteName || null,
       });
       router.back();
     } catch (err) {
@@ -210,7 +260,15 @@ export default function AddModal() {
 
           {/* URL Input (optional for tasks/notes) */}
           <View style={styles.inputGroup}>
-            <Text style={styles.fieldLabel}>LINK OR SOURCE (OPTIONAL)</Text>
+            <View style={styles.urlLabelRow}>
+              <Text style={styles.fieldLabelInline}>LINK OR SOURCE (OPTIONAL)</Text>
+              {isScraping && (
+                <View style={styles.scrapingIndicator}>
+                  <ActivityIndicator size="small" color={colors.accent} />
+                  <Text style={styles.scrapingText}>Fetching preview...</Text>
+                </View>
+              )}
+            </View>
             <TextInput
               style={styles.input}
               placeholder="https://..."
@@ -221,6 +279,30 @@ export default function AddModal() {
               keyboardType="url"
               returnKeyType="next"
             />
+
+            {/* Scraped Metadata Card Preview */}
+            {metadata && (metadata.siteName || metadata.imageUrl || metadata.title) && (
+              <View style={styles.previewCard}>
+                {metadata.imageUrl ? (
+                  <Image source={{ uri: metadata.imageUrl }} style={styles.previewImage} resizeMode="cover" />
+                ) : (
+                  <View style={styles.previewFallbackIcon}>
+                    <Globe size={20} color={colors.accent} />
+                  </View>
+                )}
+                <View style={styles.previewInfo}>
+                  <View style={styles.previewBadgeRow}>
+                    <Sparkles size={12} color={colors.accent} />
+                    <Text style={styles.previewSiteName}>
+                      {metadata.siteName || 'Web Preview'}
+                    </Text>
+                  </View>
+                  <Text style={styles.previewTitle} numberOfLines={2}>
+                    {metadata.title || url}
+                  </Text>
+                </View>
+              </View>
+            )}
           </View>
 
           {/* Duration Selector */}
@@ -565,6 +647,68 @@ const styles = StyleSheet.create({
   },
   inputGroup: {
     marginBottom: spacing.xxl,
+  },
+  urlLabelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  scrapingIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  scrapingText: {
+    ...typography.presets.caption,
+    color: colors.accent,
+    fontSize: 11,
+    fontStyle: 'italic',
+  },
+  previewCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(238, 230, 219, 0.6)',
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    marginTop: spacing.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(212, 196, 176, 0.4)',
+    gap: spacing.md,
+  },
+  previewImage: {
+    width: 52,
+    height: 52,
+    borderRadius: radii.md,
+    backgroundColor: 'rgba(212, 196, 176, 0.2)',
+  },
+  previewFallbackIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: radii.md,
+    backgroundColor: 'rgba(212, 196, 176, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  previewInfo: {
+    flex: 1,
+  },
+  previewBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 2,
+  },
+  previewSiteName: {
+    ...typography.presets.tag,
+    color: colors.accent,
+    fontSize: 10,
+    textTransform: 'uppercase',
+  },
+  previewTitle: {
+    ...typography.presets.caption,
+    fontWeight: '600',
+    color: colors.textPrimary,
   },
   input: {
     height: 54,
