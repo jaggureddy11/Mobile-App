@@ -23,6 +23,15 @@
 
 ---
 
+## Known Risks
+- **`expo-share-intent` SDK Warning**:
+  ```text
+  » android: expo-share-intent: your Expo SDK version does not match requirements! v8.0.1 needs ^57, found 58.0.0. Please refer to the compatibility table. https://github.com/achorein/expo-share-intent/#versioning
+  ```
+  - **Mitigation / Status**: Overrides in `package.json` ensure runtime and lockfile stability on Expo SDK 58. `expo prebuild` creates native iOS ShareExtension target, entitlements, and Android intent-filter blocks without errors, but upstream updates should be monitored for an official SDK 58 tag.
+
+---
+
 ## 3. EAS Build & Deployment Commands
 
 ### Development Build (For Physical Device Testing)
