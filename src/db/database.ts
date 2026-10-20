@@ -16,10 +16,10 @@ export function setStartupMigrationError(err: string | null): void {
 }
 
 export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
+  if (startupMigrationError) {
+    throw new Error(`Database unavailable: ${startupMigrationError}`);
+  }
   if (dbInstance) {
-    if (startupMigrationError) {
-      throw new Error(`Database unavailable: ${startupMigrationError}`);
-    }
     return dbInstance;
   }
   dbInstance = await SQLite.openDatabaseAsync(DATABASE_NAME);

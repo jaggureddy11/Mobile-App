@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Share, Alert } from 'react-native';
 import { HelpCircle } from 'lucide-react-native';
 import { colors, typography, spacing, radii, shadows } from '@/theme';
 import { retryDatabaseInitialization, getStartupMigrationError } from '@/db/database';
+import { debugLogger } from '@/utils/debugLogger';
 
 interface DatabaseUpdateNoticeProps {
   onRetrySuccess?: () => Promise<void> | void;
@@ -27,6 +28,18 @@ export function DatabaseUpdateNotice({ onRetrySuccess }: DatabaseUpdateNoticePro
     }
   };
 
+  const handleCopyDebugInfo = async () => {
+    try {
+      const debugInfo = debugLogger.formatDebugInfo();
+      await Share.share({
+        message: debugInfo,
+        title: 'Re:Mind Debug Info',
+      });
+    } catch (err: any) {
+      Alert.alert('Unable to copy debug info', err?.message || 'Unknown error');
+    }
+  };
+
   return (
     <View style={styles.errorContainer} testID="database-update-notice">
       <View style={styles.emptyIconCircle}>
@@ -41,19 +54,30 @@ export function DatabaseUpdateNotice({ onRetrySuccess }: DatabaseUpdateNoticePro
           {error}
         </Text>
       )}
-      <TouchableOpacity
-        style={styles.emptyActionButton}
-        onPress={handleRetry}
-        activeOpacity={0.85}
-        disabled={isRetrying}
-        testID="retry-loading-button"
-      >
-        {isRetrying ? (
-          <ActivityIndicator size="small" color="#FFFFFF" />
-        ) : (
-          <Text style={styles.emptyActionText}>Retry loading</Text>
-        )}
-      </TouchableOpacity>
+      <View style={styles.buttonRow}>
+        <TouchableOpacity
+          style={styles.actionButton}
+          onPress={handleRetry}
+          activeOpacity={0.85}
+          disabled={isRetrying}
+          testID="retry-loading-button"
+        >
+          {isRetrying ? (
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          ) : (
+            <Text style={styles.actionButtonText}>Retry loading</Text>
+          )}
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.secondaryButton}
+          onPress={handleCopyDebugInfo}
+          activeOpacity={0.85}
+          testID="copy-debug-info-button"
+        >
+          <Text style={styles.secondaryButtonText}>Copy debug info</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -99,20 +123,45 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     textAlign: 'center',
   },
-  emptyActionButton: {
+  buttonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.md,
+    flexWrap: 'wrap',
+  },
+  actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.textPrimary,
-    paddingHorizontal: spacing.xl,
-    height: 46,
+    paddingHorizontal: spacing.lg,
+    height: 44,
     borderRadius: radii.pill,
-    minWidth: 160,
+    minWidth: 130,
     ...shadows.soft,
   },
-  emptyActionText: {
+  actionButtonText: {
     ...typography.presets.button,
     color: colors.background,
+    fontSize: 14,
+  },
+  secondaryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.background,
+    borderColor: 'rgba(212, 196, 176, 0.4)',
+    borderWidth: 1,
+    paddingHorizontal: spacing.lg,
+    height: 44,
+    borderRadius: radii.pill,
+    minWidth: 130,
+    ...shadows.soft,
+  },
+  secondaryButtonText: {
+    ...typography.presets.button,
+    color: colors.textPrimary,
     fontSize: 14,
   },
 });
