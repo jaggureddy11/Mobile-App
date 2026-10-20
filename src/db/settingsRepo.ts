@@ -72,4 +72,20 @@ export const settingsRepo = {
 
     return updated;
   },
+
+  async isNotificationPrompted(): Promise<boolean> {
+    const db = await getDatabase();
+    const row = await db.getFirstAsync<{ value: string }>(
+      "SELECT value FROM settings WHERE key = 'notification_prompted'"
+    );
+    return row?.value === 'true';
+  },
+
+  async setNotificationPrompted(prompted: boolean): Promise<void> {
+    const db = await getDatabase();
+    await db.runAsync(
+      "INSERT OR REPLACE INTO settings (key, value) VALUES ('notification_prompted', ?)",
+      [prompted ? 'true' : 'false']
+    );
+  },
 };

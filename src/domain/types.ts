@@ -36,6 +36,7 @@ export interface Item {
   remind_at?: string | null;
   image_url?: string | null;
   site_name?: string | null;
+  normalized_url?: string | null;
 }
 
 export interface SurfaceEvent {

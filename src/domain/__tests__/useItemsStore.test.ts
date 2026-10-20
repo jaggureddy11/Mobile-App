@@ -6,6 +6,8 @@ jest.mock('../../db/itemsRepo');
 jest.mock('../../db/settingsRepo', () => ({
   settingsRepo: {
     getSettings: jest.fn().mockResolvedValue({ nudge_enabled: true }),
+    isNotificationPrompted: jest.fn().mockResolvedValue(false),
+    setNotificationPrompted: jest.fn().mockResolvedValue(undefined),
   },
 }));
 jest.mock('../../platform/notifications', () => ({
@@ -53,6 +55,7 @@ describe('Domain: useItemsStore', () => {
     (itemsRepo.updateStatus as jest.Mock).mockResolvedValue(undefined);
     (itemsRepo.markResurfaced as jest.Mock).mockResolvedValue(undefined);
     (itemsRepo.restore as jest.Mock).mockResolvedValue(undefined);
+    (itemsRepo.getCount as jest.Mock).mockResolvedValue(0);
 
     useItemsStore.setState({
       items: [],
@@ -144,5 +147,25 @@ describe('Domain: useItemsStore', () => {
     });
 
     expect(requestNotificationPermission).not.toHaveBeenCalled();
+  });
+
+  it('does NOT prompt for notifications on cold-start share if DB already contains items', async () => {
+    const { requestNotificationPermission } = require('../../platform/notifications');
+    const { settingsRepo } = require('../../db/settingsRepo');
+    requestNotificationPermission.mockClear();
+    (settingsRepo.isNotificationPrompted as jest.Mock).mockResolvedValue(false);
+    
+    // Cold start share: items array in store is empty [], but database already has 5 items
+    useItemsStore.setState({ items: [] });
+    (itemsRepo.getCount as jest.Mock).mockResolvedValue(5);
+
+    await useItemsStore.getState().addItem({
+      type: 'link',
+      title: 'Shared link on cold start',
+      minutes: 5,
+    });
+
+    expect(requestNotificationPermission).not.toHaveBeenCalled();
+    expect(settingsRepo.setNotificationPrompted).toHaveBeenCalledWith(true);
   });
 });

@@ -27,6 +27,7 @@ import { useSettingsStore } from '@/domain/useSettingsStore';
 import { useListenShareIntent } from '@/platform/useListenShareIntent';
 import { isItemEligible, getItemMinutes, areAllPendingItemsYoungerThanHidePeriod } from '@/domain/eligibility';
 import { SnoozeOption } from '@/domain/types';
+import { perfTracker } from '@/utils/perfTracker';
 
 export default function TodayScreen() {
   const router = useRouter();
@@ -64,8 +65,11 @@ export default function TodayScreen() {
 
   // Initial load
   useEffect(() => {
+    perfTracker.mark('cold_start_begin');
     loadSettings();
-    loadItems();
+    loadItems().then(() => {
+      perfTracker.measure('cold_start_to_today', 'cold_start_begin');
+    });
   }, [loadSettings, loadItems]);
 
   // AppState listener for "Do it" confirmation

@@ -76,21 +76,25 @@ export const itemsRepo = {
     if (!normalizedTarget) return null;
 
     const db = await getDatabase();
-    const rows = await db.getAllAsync<any>(
-      "SELECT * FROM items WHERE url IS NOT NULL AND status = 'pending'"
+    // Direct indexed query on normalized_url column
+    const row = await db.getFirstAsync<any>(
+      "SELECT * FROM items WHERE normalized_url = ? AND status = 'pending' LIMIT 1",
+      [normalizedTarget]
     );
-    for (const row of rows) {
-      if (normalizeUrl(row.url) === normalizedTarget) {
-        return deserializeItem(row);
-      }
-    }
-    return null;
+    return row ? deserializeItem(row) : null;
+  },
+
+  async getCount(): Promise<number> {
+    const db = await getDatabase();
+    const row = await db.getFirstAsync<{ count: number }>('SELECT COUNT(*) as count FROM items');
+    return row?.count ?? 0;
   },
 
   async create(input: CreateItemInput): Promise<Item> {
     const db = await getDatabase();
     const remindAt = input.remind_at || calculateRemindAt(input.remind_interval);
     const tagsJson = JSON.stringify(input.tags || []);
+    const normalizedUrl = input.url ? normalizeUrl(input.url) : null;
 
     const newItem: Item = {
       id: generateUUID(),
@@ -112,11 +116,12 @@ export const itemsRepo = {
       remind_at: remindAt,
       image_url: input.image_url ?? null,
       site_name: input.site_name ?? null,
+      normalized_url: normalizedUrl,
     };
 
     await db.runAsync(
-      `INSERT INTO items (id, type, title, url, note, minutes, status, created_at, done_at, let_go_at, resurfaced_at, snoozed_until, times_surfaced, collection_id, tags, remind_interval, remind_at, image_url, site_name)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO items (id, type, title, url, note, minutes, status, created_at, done_at, let_go_at, resurfaced_at, snoozed_until, times_surfaced, collection_id, tags, remind_interval, remind_at, image_url, site_name, normalized_url)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         newItem.id,
         newItem.type,
@@ -137,6 +142,7 @@ export const itemsRepo = {
         newItem.remind_at ?? null,
         newItem.image_url ?? null,
         newItem.site_name ?? null,
+        newItem.normalized_url ?? null,
       ]
     );
 
@@ -170,18 +176,25 @@ export const itemsRepo = {
     const db = await getDatabase();
     const eventId = generateUUID();
     const now = new Date().toISOString();
-    await db.withTransactionAsync(async () => {
-      await db.runAsync(
-        `INSERT INTO surface_events (id, item_id, shown_at, chip_minutes, action, acted_at)
-         VALUES (?, ?, ?, ?, NULL, NULL)`,
-        [eventId, itemId, now, chipMinutes]
-      );
-      await db.runAsync(
-        `UPDATE items SET times_surfaced = COALESCE(times_surfaced, 0) + 1, resurfaced_at = ? WHERE id = ?`,
-        [now, itemId]
-      );
-    });
-    return eventId;
+    try {
+      await db.withTransactionAsync(async () => {
+        await db.runAsync(
+          `INSERT INTO surface_events (id, item_id, shown_at, chip_minutes, action, acted_at)
+           VALUES (?, ?, ?, ?, NULL, NULL)`,
+          [eventId, itemId, now, chipMinutes]
+        );
+        await db.runAsync(
+          `UPDATE items SET times_surfaced = COALESCE(times_surfaced, 0) + 1, resurfaced_at = ? WHERE id = ?`,
+          [now, itemId]
+        );
+      });
+      return eventId;
+    } catch (err: any) {
+      if (__DEV__) {
+        console.warn('recordSurfaceEvent database error:', err?.message || err);
+      }
+      throw err;
+    }
   },
 
   async recordSurfaceAction(eventId: string, action: string): Promise<void> {

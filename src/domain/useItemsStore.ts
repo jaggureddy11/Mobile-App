@@ -70,7 +70,11 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
         if (!previousActive || newActive.id !== previousActive.id || !previousEventId) {
           try {
             eventId = await itemsRepo.recordSurfaceEvent(newActive.id, selectedMinutes);
-          } catch {}
+          } catch (err: any) {
+            if (__DEV__) {
+              console.warn('Failed to record surface event on load:', err?.message || err);
+            }
+          }
         }
       } else {
         eventId = null;
@@ -112,7 +116,9 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
     if (newActive) {
       itemsRepo.recordSurfaceEvent(newActive.id, minutes)
         .then((eventId) => set({ currentSurfaceEventId: eventId }))
-        .catch(() => {});
+        .catch((err: any) => {
+          if (__DEV__) console.warn('Failed to record surface event on chip change:', err?.message || err);
+        });
     } else {
       set({ currentSurfaceEventId: null });
     }
@@ -122,13 +128,18 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
 
   addItem: async (input: CreateItemInput) => {
     const { items, selectedMinutes, activeItem } = get();
-    const isFirstSave = items.length === 0;
+
+    // Persisted first-save check:
+    // Requires: not already prompted AND in-memory items empty AND database count is 0
+    const alreadyPrompted = await settingsRepo.isNotificationPrompted().catch(() => false);
+    const totalCountBefore = await itemsRepo.getCount().catch(() => items.length);
+    const isFirstSave = !alreadyPrompted && items.length === 0 && totalCountBefore === 0;
 
     const newItem = await itemsRepo.create(input);
     const updatedItems = [newItem, ...items];
     
-    // If this is the user's first save, request notification permission
     if (isFirstSave) {
+      await settingsRepo.setNotificationPrompted(true).catch(() => {});
       requestNotificationPermission()
         .then(async (granted) => {
           if (granted) {
@@ -137,6 +148,9 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
           }
         })
         .catch(() => {});
+    } else if (!alreadyPrompted && (items.length > 0 || totalCountBefore > 0)) {
+      // Mark prompted so subsequent saves never prompt erroneously
+      await settingsRepo.setNotificationPrompted(true).catch(() => {});
     }
 
     // If no active item, pick the newly added item if suitable
@@ -146,7 +160,9 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
     if (!activeItem && newActive) {
       try {
         eventId = await itemsRepo.recordSurfaceEvent(newActive.id, selectedMinutes);
-      } catch {}
+      } catch (err: any) {
+        if (__DEV__) console.warn('Failed to record surface event on add:', err?.message || err);
+      }
     }
 
     set({ items: updatedItems, activeItem: newActive, currentSurfaceEventId: eventId });
@@ -169,7 +185,9 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
     if (nextActive) {
       try {
         nextEventId = await itemsRepo.recordSurfaceEvent(nextActive.id, selectedMinutes);
-      } catch {}
+      } catch (err: any) {
+        if (__DEV__) console.warn('Failed to record surface event on do:', err?.message || err);
+      }
     }
 
     set({ items: updatedItems, activeItem: nextActive, currentSurfaceEventId: nextEventId });
@@ -201,7 +219,9 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
     if (nextActive) {
       try {
         nextEventId = await itemsRepo.recordSurfaceEvent(nextActive.id, selectedMinutes);
-      } catch {}
+      } catch (err: any) {
+        if (__DEV__) console.warn('Failed to record surface event on snooze:', err?.message || err);
+      }
     }
 
     set({ items: updatedItems, activeItem: nextActive, currentSurfaceEventId: nextEventId });
@@ -231,7 +251,9 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
     if (nextActive) {
       try {
         nextEventId = await itemsRepo.recordSurfaceEvent(nextActive.id, selectedMinutes);
-      } catch {}
+      } catch (err: any) {
+        if (__DEV__) console.warn('Failed to record surface event on let_go:', err?.message || err);
+      }
     }
 
     // 5-second undo timer
@@ -264,7 +286,9 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
     let eventId: string | null = null;
     try {
       eventId = await itemsRepo.recordSurfaceEvent(undoItem.id, selectedMinutes);
-    } catch {}
+    } catch (err: any) {
+      if (__DEV__) console.warn('Failed to record surface event on undo:', err?.message || err);
+    }
 
     set({
       items: updatedItems,
@@ -285,7 +309,9 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
     if (next) {
       itemsRepo.recordSurfaceEvent(next.id, selectedMinutes)
         .then((eventId) => set({ currentSurfaceEventId: eventId }))
-        .catch(() => {});
+        .catch((err: any) => {
+          if (__DEV__) console.warn('Failed to record surface event on next:', err?.message || err);
+        });
       set({ activeItem: next });
     }
   },

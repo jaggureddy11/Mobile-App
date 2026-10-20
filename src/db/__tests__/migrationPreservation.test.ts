@@ -107,8 +107,11 @@ describe('Database Migration & Data Preservation', () => {
         if (sql.includes('SELECT key, value FROM settings')) {
           return settingsTable;
         }
-        if (sql.includes('SELECT * FROM surface_events')) {
-          return surfaceEventsTable;
+        if (sql.includes('SELECT id, url FROM items')) {
+          return itemsTable.map((i) => ({ id: i.id, url: i.url }));
+        }
+        if (sql.includes('SELECT normalized_url, COUNT(*) as count')) {
+          return [];
         }
         if (sql.includes('SELECT url, COUNT(*) as count FROM items')) {
           return [];
@@ -124,7 +127,15 @@ describe('Database Migration & Data Preservation', () => {
         return null;
       }),
 
-      runAsync: jest.fn().mockResolvedValue(undefined),
+      runAsync: jest.fn().mockImplementation(async (sql: string, params?: any[]) => {
+        if (sql.includes('UPDATE items SET normalized_url = ? WHERE id = ?')) {
+          const item = itemsTable.find((i) => i.id === params?.[1]);
+          if (item) item.normalized_url = params?.[0];
+        }
+        return undefined;
+      }),
+
+      withTransactionAsync: jest.fn().mockImplementation(async (cb: () => Promise<any>) => await cb()),
     };
 
     setTestDatabase(mockDb);

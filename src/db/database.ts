@@ -1,4 +1,5 @@
 import * as SQLite from 'expo-sqlite';
+import { normalizeUrl } from '../domain/urlUtils';
 
 export const DATABASE_NAME = 'maybe_later.db';
 
@@ -37,7 +38,8 @@ export async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
       remind_interval TEXT,
       remind_at TEXT,
       image_url TEXT,
-      site_name TEXT
+      site_name TEXT,
+      normalized_url TEXT
     );
 
     CREATE INDEX IF NOT EXISTS idx_items_status ON items(status);
@@ -47,6 +49,7 @@ export async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_items_snoozed ON items(snoozed_until);
     CREATE INDEX IF NOT EXISTS idx_items_times_surfaced ON items(times_surfaced);
     CREATE INDEX IF NOT EXISTS idx_items_resurface_eval ON items(status, minutes, times_surfaced, created_at);
+    CREATE INDEX IF NOT EXISTS idx_items_normalized_url ON items(normalized_url);
 
     CREATE TABLE IF NOT EXISTS surface_events (
       id TEXT PRIMARY KEY NOT NULL,
@@ -82,46 +85,128 @@ export async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
   try { await db.execAsync('ALTER TABLE items ADD COLUMN site_name TEXT;'); } catch {}
   try { await db.execAsync('ALTER TABLE items ADD COLUMN snoozed_until TEXT;'); } catch {}
   try { await db.execAsync('ALTER TABLE items ADD COLUMN times_surfaced INTEGER DEFAULT 0;'); } catch {}
+  try { await db.execAsync('ALTER TABLE items ADD COLUMN normalized_url TEXT;'); } catch {}
 
   // Numbered Migration 001: Purge user_password data and rebuild settings table without column
   await migratePurgePassword(db);
 
-  // Numbered Migration 002: Detect duplicates and safely create partial unique index on non-empty URLs
+  // Numbered Migration 002: Backfill normalized_url, detect duplicate groups, and create indexed lookup / partial unique index
   await migrateUrlIndex(db);
 }
 
-export async function detectAndReportUrlDuplicates(db: SQLite.SQLiteDatabase): Promise<string[]> {
+export interface DuplicateUrlGroup {
+  normalized_url: string;
+  count: number;
+  item_ids: string[];
+}
+
+/**
+ * Backfills normalized_url for existing items using the canonical normalizeUrl function.
+ */
+export async function backfillNormalizedUrls(db: SQLite.SQLiteDatabase): Promise<number> {
   try {
-    const rows = await db.getAllAsync<{ url: string; count: number }>(`
-      SELECT url, COUNT(*) as count
+    const rows = await db.getAllAsync<{ id: string; url: string }>(`
+      SELECT id, url FROM items
+      WHERE url IS NOT NULL AND TRIM(url) != '' AND (normalized_url IS NULL OR TRIM(normalized_url) = '');
+    `);
+    if (rows && rows.length > 0) {
+      await db.withTransactionAsync(async () => {
+        for (const row of rows) {
+          const normalized = normalizeUrl(row.url) || null;
+          await db.runAsync('UPDATE items SET normalized_url = ? WHERE id = ?', [normalized, row.id]);
+        }
+      });
+      return rows.length;
+    }
+  } catch (err: any) {
+    if (__DEV__) console.warn('backfillNormalizedUrls warning:', err?.message || err);
+  }
+  return 0;
+}
+
+/**
+ * Detects duplicate URL groups on pending items using normalized_url.
+ * Does NOT delete anything. Reports exact duplicate groups found.
+ */
+export async function detectAndReportNormalizedUrlDuplicates(
+  db: SQLite.SQLiteDatabase
+): Promise<DuplicateUrlGroup[]> {
+  try {
+    const rows = await db.getAllAsync<{ normalized_url: string; count: number; ids: string }>(`
+      SELECT normalized_url, COUNT(*) as count, GROUP_CONCAT(id) as ids
       FROM items
-      WHERE url IS NOT NULL AND TRIM(url) != '' AND status = 'pending'
-      GROUP BY url
+      WHERE normalized_url IS NOT NULL AND TRIM(normalized_url) != '' AND status = 'pending'
+      GROUP BY normalized_url
       HAVING count > 1;
     `);
     if (rows && rows.length > 0) {
-      console.warn('Existing duplicate URLs detected in database:', rows);
-      return rows.map((r) => r.url);
+      const groups: DuplicateUrlGroup[] = rows.map((r) => ({
+        normalized_url: r.normalized_url,
+        count: r.count,
+        item_ids: r.ids ? r.ids.split(',') : [],
+      }));
+      console.warn(`[Duplicate Detection] Found ${groups.length} duplicate URL group(s):`, groups);
+      return groups;
     }
-  } catch {}
+  } catch (err: any) {
+    if (__DEV__) console.warn('detectAndReportNormalizedUrlDuplicates warning:', err?.message || err);
+  }
   return [];
+}
+
+/**
+ * Legacy compatibility wrapper for string array output
+ */
+export async function detectAndReportUrlDuplicates(db: SQLite.SQLiteDatabase): Promise<string[]> {
+  const groups = await detectAndReportNormalizedUrlDuplicates(db);
+  return groups.map((g) => g.normalized_url);
 }
 
 export async function migrateUrlIndex(db: SQLite.SQLiteDatabase): Promise<void> {
   try {
-    const duplicates = await detectAndReportUrlDuplicates(db);
-    if (duplicates.length === 0) {
+    // 1. Backfill existing items with normalized_url
+    await backfillNormalizedUrls(db);
+
+    // 2. Ensure general lookup index exists on normalized_url
+    await db.execAsync('CREATE INDEX IF NOT EXISTS idx_items_normalized_url ON items(normalized_url);');
+
+    // 3. Check for duplicate groups
+    const duplicateGroups = await detectAndReportNormalizedUrlDuplicates(db);
+
+    if (duplicateGroups.length === 0) {
       await db.execAsync(`
         CREATE UNIQUE INDEX IF NOT EXISTS idx_items_unique_url
-        ON items(url)
-        WHERE url IS NOT NULL AND TRIM(url) != '' AND status = 'pending';
+        ON items(normalized_url)
+        WHERE normalized_url IS NOT NULL AND TRIM(normalized_url) != '' AND status = 'pending';
       `);
     } else {
-      console.warn('Skipping unique URL index creation due to existing duplicates; application-level deduplication active.');
+      console.warn(
+        `[Duplicate Detection] Skipping unique index creation due to ${duplicateGroups.length} existing duplicate group(s). Application-level deduplication remains active.`
+      );
     }
-  } catch (err) {
-    console.warn('URL index migration note:', err);
+  } catch (err: any) {
+    if (__DEV__) console.warn('URL index migration warning:', err?.message || err);
   }
+}
+
+/**
+ * Merge option helper for duplicates (requires user approval to call)
+ */
+export async function mergeDuplicateItems(
+  db: SQLite.SQLiteDatabase,
+  keepId: string,
+  duplicateIds: string[]
+): Promise<void> {
+  await db.withTransactionAsync(async () => {
+    for (const dupId of duplicateIds) {
+      if (dupId !== keepId) {
+        await db.runAsync(
+          "UPDATE items SET status = 'let_go', let_go_at = ?, note = COALESCE(note || ' ', '') || '[Merged into ' || ? || ']' WHERE id = ?",
+          [new Date().toISOString(), keepId, dupId]
+        );
+      }
+    }
+  });
 }
 
 export async function migratePurgePassword(db: SQLite.SQLiteDatabase): Promise<void> {

@@ -1,42 +1,43 @@
-# Re:Mind Manual Verification & Beta Testing Guide
+# Re:Mind Manual Verification & Hardware Device Matrix
 
-## Automated Test Coverage
-- **Suites:** 19 test suites, 223 tests passing
-- **Static Analysis:** TypeScript (`npx tsc --noEmit`) clean, 0 errors
-- **Key Modules Covered:**
-  - `migrationPreservation.test.ts`: Preserves items, collections, non-secret settings while dropping `user_password`.
-  - `surfaceEventsAndMigrations.test.ts`: Exactly one surface event per card, URL deduplication migration.
-  - `doneWithItModal.test.tsx`: AppState background-to-active transition, dismiss / answer clears `pendingConfirmItemId`.
-  - `snooze.test.ts`: Saturday (before/after 10am), Sunday, next week Monday rollover, DST clock preservation.
-  - `eligibility.test.ts`: 24-hour hide period, `__DEV__` override to 0, 4th empty state detection.
-  - `useItemsStore.test.ts`: First-save notification permission & nudge scheduling vs subsequent saves.
+> **Notice**: All device entries must be verified on physical hardware or development builds; do not mark them passed without physical device testing.
 
 ---
 
-## Performance Measurements (5,000 Items Seeded)
-Measured via `node scripts/benchmark-seed.js`:
-- **Cold-Start (Database open + Schema init):** `16.59 ms`
-- **Batched Insert (5,000 items):** `128.37 ms` (`0.026 ms/item`)
-- **Resurface Pick (5m chip):** `3.105 ms` (Target: < 50ms ✅)
-- **Resurface Pick (15m chip):** `3.045 ms` (Target: < 50ms ✅)
-- **Resurface Pick (30m chip):** `2.867 ms` (Target: < 50ms ✅)
-- **Saved List Pagination (Page 1, 20 items):** `2.395 ms` (Target: < 50ms ✅)
-- **Saved List Pagination (Page 2, 20 items):** `1.657 ms` (Target: < 50ms ✅)
+## Behavior Spec Alignment
+- **Later Sheet Snooze Options**: Exactly **3 options** matching spec:
+  1. *Tomorrow* (Next day at user's configured nudge time)
+  2. *This weekend* (Saturday at 10:00 AM local time)
+  3. *Next week* (Monday at user's configured nudge time)
+- **Purge Threshold**: Exactly **30 days** (`PURGE_THRESHOLD_DAYS = 30`, `src/domain/purge.ts`). Items with `status = 'let_go'` older than 30 days are automatically pruned from the SQLite database.
 
 ---
 
-## Manual Verification Checklist
+## Step 5 Full Device Test Matrix (Fill-In)
 
-| Feature | Scenario | Status / Environment |
-|---|---|---|
-| **First-Day Experience** | New install with items saved < 24h ago shows 4th empty state: *"Your first item will be ready tomorrow..."* | Verified in Jest unit test; [Simulator / Dev build] |
-| **First-Day Override** | In dev build (`__DEV__ = true`), `setDevHidePeriodOverride(0)` immediately surfaces new items | Verified in Jest unit test; [Dev build] |
-| **Done-With-It Modal** | Tap "Do It" -> app opens external link -> switch back to app from background -> modal appears | Verified in mocked AppState test; **needs device test** |
-| **Done-With-It Inactive** | Pull down notification shade (triggers 'inactive') -> return to app -> modal does NOT appear | Verified in mocked AppState test; **needs device test** |
-| **Notification Permission** | First item saved via Add screen prompts system notification dialog | Verified in store unit test; **needs device test** |
-| **Share Intent Save** | Share URL from Safari / Chrome -> item saved, prompts notification if first save | Verified in share intent tests; **needs device test** |
-| **Scheduled Nudge** | Daily nudge scheduled at user's configured time in settings | Verified with expo-notifications mock; **needs device test** |
-| **Duplicate URL Alert** | Saving duplicate pending URL shows prompt; saving done/let_go URL is allowed | Verified in itemsRepo & URL tests; [Simulator / Device] |
-| **Snooze Menu** | Later button displays sheet (Later today, Tonight, Tomorrow morning, This weekend, Next week) | Verified in Jest snooze tests; [Simulator / Device] |
-| **Purge Expired Let-Go** | Items let go > 7 days ago deleted from DB automatically | Verified in purge tests; [Simulator / Device] |
-| **Cloud Sync Gated** | Cloud sync and account creation screens/buttons hidden behind `features.sync` / `features.accounts` | Verified in UI code inspection; [Simulator / Device] |
+| Test Category | Test Case / Scenario | iOS Result | Android Result | Notes |
+|---|---|---|---|---|
+| **Share Intent (App Closed)** | Share Instagram reel with app closed | needs device test | needs device test | Native share sheet $\to$ app opens $\to$ item saved $\to$ type 'reel' (1m) |
+| **Share Intent (App Closed)** | Share YouTube video with app closed | needs device test | needs device test | Native share sheet $\to$ app opens $\to$ item saved $\to$ type 'link' (5m) |
+| **Share Intent (App Closed)** | Share Chrome/Safari article with app closed | needs device test | needs device test | Open Graph title & image extracted |
+| **Share Intent (App Closed)** | Share WhatsApp plain text with app closed | needs device test | needs device test | Saves as text type (1m) |
+| **Share Intent (App Closed)** | Share Notes plain text with app closed | needs device test | needs device test | Saves as text type (1m) |
+| **Share Intent (App Open)** | Share Instagram reel while app is in background | needs device test | needs device test | Foreground transition handles intent smoothly |
+| **Share Intent (App Open)** | Share YouTube video while app is in background | needs device test | needs device test | Metadata parsed, toast/card confirms save |
+| **Share Intent (App Open)** | Share Chrome/Safari article while app in background | needs device test | needs device test | URL normalized; duplicate detected if exists |
+| **Share Intent (App Open)** | Share WhatsApp text while app in background | needs device test | needs device test | Text item added to store immediately |
+| **Share Intent (App Open)** | Share Notes text while app in background | needs device test | needs device test | Text item added to store immediately |
+| **Duplicate Share** | Share identical URL that is already pending | needs device test | needs device test | Warns user item is already saved; no duplicate created |
+| **Duplicate Allowed** | Share URL previously marked 'done' or 'let_go' | needs device test | needs device test | Re-saving allowed; creates new pending item |
+| **Offline Share** | Share item in Airplane Mode | needs device test | needs device test | Saved locally without network crash; scraper handles offline |
+| **Mid-Save Interruption** | Force kill app immediately during save | needs device test | needs device test | SQLite WAL transaction ensures DB integrity on reboot |
+| **Notification Permission** | First save $\to$ permission granted | needs device test | needs device test | System dialog prompts; nudge scheduled at configured time |
+| **Notification Permission** | First save $\to$ permission denied | needs device test | needs device test | Gracefully rejected; settings reflect disabled; app does not crash |
+| **Nudge Reliability** | 3 consecutive days of daily nudges | needs device test | needs device test | Nudges fire reliably at user-configured time daily |
+| **Quiet Hours** | Nudge scheduled during quiet hours window | needs device test | needs device test | Scheduled outside quiet hours boundary |
+| **Notification Tap** | Tap notification banner when app closed/background | needs device test | needs device test | Routes directly to Today tab with active item surfaced |
+| **Battery Optimization** | Android Doze / aggressive battery saver enabled | N/A | needs device test | AlarmManager / WorkManager schedule verified on Android |
+| **Accessibility (Today)** | Dynamic Type / Large Font + ScreenReader (VoiceOver/TalkBack) | needs device test | needs device test | No clipped text; action buttons have accessible labels |
+| **Accessibility (Add)** | Dynamic Type / Large Font + ScreenReader | needs device test | needs device test | Input fields and category pills navigable |
+| **Accessibility (Saved)** | Dynamic Type / Large Font + ScreenReader | needs device test | needs device test | FlatList items and filter chips read clearly |
+| **Upgrade-Install** | Install new build over previous build with real SQLite data | needs device test | needs device test | Migrations run cleanly; all items, collections, settings intact |

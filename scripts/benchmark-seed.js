@@ -39,7 +39,8 @@ function runBenchmark() {
       remind_interval TEXT,
       remind_at TEXT,
       image_url TEXT,
-      site_name TEXT
+      site_name TEXT,
+      normalized_url TEXT
     );
 
     CREATE INDEX IF NOT EXISTS idx_items_status ON items(status);
@@ -48,7 +49,8 @@ function runBenchmark() {
     CREATE INDEX IF NOT EXISTS idx_items_collection ON items(collection_id);
     CREATE INDEX IF NOT EXISTS idx_items_snoozed ON items(snoozed_until);
     CREATE INDEX IF NOT EXISTS idx_items_times_surfaced ON items(times_surfaced);
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_items_unique_url ON items(url) WHERE url IS NOT NULL AND TRIM(url) != '' AND status = 'pending';
+    CREATE INDEX IF NOT EXISTS idx_items_normalized_url ON items(normalized_url);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_items_unique_url ON items(normalized_url) WHERE normalized_url IS NOT NULL AND TRIM(normalized_url) != '' AND status = 'pending';
 
     -- Composite index for fast resurfacing queries
     CREATE INDEX IF NOT EXISTS idx_items_resurface_eval 
@@ -94,9 +96,9 @@ function runBenchmark() {
   const insertStmt = db.prepare(`
     INSERT INTO items (
       id, type, title, url, note, minutes, status, created_at, done_at, let_go_at,
-      resurfaced_at, snoozed_until, times_surfaced, collection_id
+      resurfaced_at, snoozed_until, times_surfaced, collection_id, normalized_url
     ) VALUES (
-      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
     );
   `);
 
@@ -177,7 +179,8 @@ function runBenchmark() {
       null,
       snoozedUntil,
       timesSurfaced,
-      null
+      null,
+      url
     );
   }
 
@@ -228,14 +231,35 @@ function runBenchmark() {
   const p2End = performance.now();
   console.log(`[Page 2 (LIMIT 20 OFFSET 20)]: ${(p2End - p2Start).toFixed(3)} ms (Returned: ${page2.length} items)`);
 
+  // Query 3: All Saved text search over 5,000 items (title/note/url LIKE query)
+  console.log('\n--- All Saved Text Search Benchmark (title/note/url LIKE) ---');
+  const searchStmt = db.prepare(`
+    SELECT * FROM items
+    WHERE status != 'let_go'
+      AND (
+        title LIKE ?
+        OR note LIKE ?
+        OR url LIKE ?
+      )
+    ORDER BY created_at DESC
+    LIMIT 20;
+  `);
+
+  const searchTerm = '%Article%';
+  const sStart = performance.now();
+  const searchResults = searchStmt.all(searchTerm, searchTerm, searchTerm);
+  const sEnd = performance.now();
+  const searchDurationMs = sEnd - sStart;
+  console.log(`[Text Search (LIKE '%Article%')]: ${searchDurationMs.toFixed(3)} ms (Found: ${searchResults.length} items)`);
+
   // Overall summary
-  console.log('\n=== Benchmark Summary ===');
+  console.log('\n=== Benchmark Summary (SQL query timings in Node on a laptop, not on-device) ===');
   console.log(`- 5,000 items batched insert: ${insertTotalMs.toFixed(2)} ms`);
   console.log(`- 5m chip resurface pick: sub-millisecond (well under 50ms)`);
   console.log(`- 15m chip resurface pick: sub-millisecond (well under 50ms)`);
   console.log(`- 30m chip resurface pick: sub-millisecond (well under 50ms)`);
   console.log(`- Saved list pagination: sub-millisecond (well under 50ms)`);
-  console.log('All queries executed well within the 50ms requirement!');
+  console.log(`- All Saved text search: ${searchDurationMs.toFixed(3)} ms (Target: < 300ms)`);
 
   db.close();
   // Cleanup test database file

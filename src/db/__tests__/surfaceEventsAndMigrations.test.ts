@@ -14,6 +14,7 @@ describe('Surface Events, Snooze & URL Normalization DB Operations', () => {
         type: 'link',
         title: 'Original Saved Article',
         url: 'https://example.com/blog/article?utm_source=twitter&utm_medium=social',
+        normalized_url: 'https://example.com/blog/article',
         minutes: 5,
         status: 'pending',
         created_at: '2026-10-01T10:00:00Z',
@@ -37,6 +38,12 @@ describe('Surface Events, Snooze & URL Normalization DB Operations', () => {
       getFirstAsync: jest.fn().mockImplementation(async (sql: string, params?: any[]) => {
         if (sql.includes('SELECT * FROM items WHERE id = ?')) {
           return itemsTable.find((i) => i.id === params?.[0]) || null;
+        }
+        if (sql.includes('WHERE normalized_url = ?')) {
+          return itemsTable.find((i) => i.normalized_url === params?.[0] && i.status === 'pending') || null;
+        }
+        if (sql.includes('SELECT COUNT(*) as count FROM items')) {
+          return { count: itemsTable.length };
         }
         return null;
       }),
