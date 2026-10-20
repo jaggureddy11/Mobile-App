@@ -134,6 +134,10 @@ describe('Database Migration & Data Preservation', () => {
           const hasPasswordRow = settingsTable.some((r) => r.key === 'user_password');
           return { count: hasPasswordRow ? 1 : 0 };
         }
+        if (sql.includes("key = 'debug_logs'")) {
+          const row = settingsTable.find((r) => r.key === 'debug_logs');
+          return row ? { value: row.value } : null;
+        }
         return null;
       }),
 
@@ -150,6 +154,18 @@ describe('Database Migration & Data Preservation', () => {
             item.merged_into = params?.[1];
           }
         }
+        if (sql.includes('debug_logs')) {
+          if (sql.includes('DELETE')) {
+            settingsTable = settingsTable.filter((r) => r.key !== 'debug_logs');
+          } else {
+            const existing = settingsTable.find((r) => r.key === 'debug_logs');
+            if (existing) {
+              existing.value = params?.[0];
+            } else {
+              settingsTable.push({ key: 'debug_logs', value: params?.[0] });
+            }
+          }
+        }
         return undefined;
       }),
 
@@ -159,6 +175,26 @@ describe('Database Migration & Data Preservation', () => {
         const snapshotCollections = JSON.parse(JSON.stringify(collectionsTable));
         try {
           return await cb();
+        } catch (err) {
+          itemsTable = snapshotItems;
+          settingsTable = snapshotSettings;
+          collectionsTable = snapshotCollections;
+          throw err;
+        }
+      }),
+
+      withExclusiveTransactionAsync: jest.fn().mockImplementation(async (cb: (txn: any) => Promise<any>) => {
+        const snapshotItems = JSON.parse(JSON.stringify(itemsTable));
+        const snapshotSettings = JSON.parse(JSON.stringify(settingsTable));
+        const snapshotCollections = JSON.parse(JSON.stringify(collectionsTable));
+        const txn = {
+          execAsync: jest.fn().mockImplementation((sql: string) => mockDb.execAsync(sql)),
+          getAllAsync: jest.fn().mockImplementation((sql: string) => mockDb.getAllAsync(sql)),
+          getFirstAsync: jest.fn().mockImplementation((sql: string) => mockDb.getFirstAsync(sql)),
+          runAsync: jest.fn().mockImplementation((sql: string, params?: any[]) => mockDb.runAsync(sql, params)),
+        };
+        try {
+          return await cb(txn);
         } catch (err) {
           itemsTable = snapshotItems;
           settingsTable = snapshotSettings;
@@ -306,5 +342,77 @@ describe('Database Migration & Data Preservation', () => {
 
     // 4. getDatabase now returns the db instance and is ready for use
     expect(await getDatabase()).toBe(mockDb);
+  });
+
+  it('strictly enforces that migrations use the transaction handle (txn) and fails if outer db handle is touched inside a transaction', async () => {
+    let inExclusiveTxn = false;
+
+    // Track calls on the outer handle
+    const outerGuard = (methodName: string) => {
+      if (inExclusiveTxn) {
+        throw new Error(
+          `CRITICAL_VIOLATION: Outer db.${methodName}() called inside withExclusiveTransactionAsync! Migrations must use the txn handle.`
+        );
+      }
+    };
+
+    const strictDb: any = {
+      ...mockDb,
+      execAsync: jest.fn().mockImplementation(async (sql: string) => {
+        outerGuard('execAsync');
+        return mockDb.execAsync(sql);
+      }),
+      getAllAsync: jest.fn().mockImplementation(async (sql: string) => {
+        outerGuard('getAllAsync');
+        return mockDb.getAllAsync(sql);
+      }),
+      getFirstAsync: jest.fn().mockImplementation(async (sql: string) => {
+        outerGuard('getFirstAsync');
+        return mockDb.getFirstAsync(sql);
+      }),
+      runAsync: jest.fn().mockImplementation(async (sql: string, params?: any[]) => {
+        outerGuard('runAsync');
+        return mockDb.runAsync(sql, params);
+      }),
+      withExclusiveTransactionAsync: jest.fn().mockImplementation(async (cb: (txn: any) => Promise<any>) => {
+        inExclusiveTxn = true;
+        const txn = {
+          execAsync: jest.fn().mockImplementation((sql: string) => mockDb.execAsync(sql)),
+          getAllAsync: jest.fn().mockImplementation((sql: string) => mockDb.getAllAsync(sql)),
+          getFirstAsync: jest.fn().mockImplementation((sql: string) => mockDb.getFirstAsync(sql)),
+          runAsync: jest.fn().mockImplementation((sql: string, params?: any[]) => mockDb.runAsync(sql, params)),
+        };
+        try {
+          return await cb(txn);
+        } finally {
+          inExclusiveTxn = false;
+        }
+      }),
+    };
+
+    // Run all migrations through strictDb - will throw if ANY migration touches outer strictDb inside transaction
+    await expect(initSchema(strictDb)).resolves.not.toThrow();
+  });
+
+  it('proves that retryDatabaseInitialization flushes in-memory debug log buffer to SQLite upon successful retry', async () => {
+    const { debugLogger } = require('../../utils/debugLogger');
+    await debugLogger.clear();
+
+    // 1. Log errors while database is failing or in memory
+    debugLogger.logError('TodayScreen', new TypeError('Pre-retry error 1'));
+    debugLogger.logError('SavedScreen', new RangeError('Pre-retry error 2'));
+
+    expect(debugLogger.getLogs()).toHaveLength(2);
+    // SQLite settings table does not yet have debug_logs persisted
+    expect(settingsTable.find((r) => r.key === 'debug_logs')).toBeUndefined();
+
+    // 2. Call retryDatabaseInitialization (not direct debugLogger.persist())
+    await retryDatabaseInitialization(mockDb);
+
+    // 3. Proves successful retry flushes in-memory debug log buffer to SQLite
+    const persistedEntry = settingsTable.find((r) => r.key === 'debug_logs');
+    expect(persistedEntry).toBeDefined();
+    expect(persistedEntry?.value).toContain('TypeError');
+    expect(persistedEntry?.value).toContain('RangeError');
   });
 });
