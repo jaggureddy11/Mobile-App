@@ -1,8 +1,32 @@
 import { debugLogger } from '../debugLogger';
 
+// Mock the database dependency
+let mockSettingsStore: Record<string, string> = {};
+jest.mock('../../db/database', () => ({
+  getDatabase: jest.fn().mockImplementation(async () => ({
+    getFirstAsync: jest.fn().mockImplementation(async (sql: string) => {
+      if (sql.includes("key = 'debug_logs'")) {
+        return mockSettingsStore['debug_logs'] ? { value: mockSettingsStore['debug_logs'] } : null;
+      }
+      return null;
+    }),
+    runAsync: jest.fn().mockImplementation(async (sql: string, params?: any[]) => {
+      if (sql.includes('debug_logs')) {
+        if (sql.includes('DELETE')) {
+          delete mockSettingsStore['debug_logs'];
+        } else if (sql.includes('INSERT')) {
+          mockSettingsStore['debug_logs'] = params?.[0];
+        }
+      }
+      return undefined;
+    }),
+  })),
+}));
+
 describe('debugLogger', () => {
-  beforeEach(() => {
-    debugLogger.clear();
+  beforeEach(async () => {
+    mockSettingsStore = {};
+    await debugLogger.clear();
   });
 
   it('records error name, screen, and timestamp without sensitive data', () => {
@@ -19,6 +43,42 @@ describe('debugLogger', () => {
     expect(logs[0].error_name).not.toContain('secret');
   });
 
+  it('strictly prevents URLs, titles, or user notes from entering the log', () => {
+    // 1. Error with URL and confidential user item note in message
+    const errorWithUrlAndNote = new Error('HTTP 404 at https://private-domain.org/articles/my-confidential-note-and-title');
+    debugLogger.logError('AddScreen', errorWithUrlAndNote);
+
+    // 2. Raw string containing full item content and tracking URL
+    const rawStringError = 'Failed: https://instagram.com/reel/12345?utm_source=tracker - My Private Reel Note';
+    debugLogger.logError('ItemDetail', rawStringError);
+
+    // 3. Object containing sensitive properties
+    const objectError = {
+      message: 'Failed to save https://secret-url.com/vault',
+      title: 'Secret Item Title',
+      note: 'Confidential user notes should never be logged',
+    };
+    debugLogger.logError('ShareIntent', objectError);
+
+    const logs = debugLogger.getLogs();
+    expect(logs).toHaveLength(3);
+
+    // Assert every entry has sanitized error names
+    expect(logs[0].error_name).toBe('Error');
+    expect(logs[1].error_name).toBe('StringError');
+    expect(logs[2].error_name).toBe('Object');
+
+    // Comprehensive check on JSON stringified log output
+    const jsonOutput = JSON.stringify(logs);
+    expect(jsonOutput).not.toContain('https://');
+    expect(jsonOutput).not.toContain('private-domain');
+    expect(jsonOutput).not.toContain('instagram');
+    expect(jsonOutput).not.toContain('tracker');
+    expect(jsonOutput).not.toContain('Confidential');
+    expect(jsonOutput).not.toContain('Secret');
+    expect(jsonOutput).not.toContain('vault');
+  });
+
   it('caps entries at 50', () => {
     for (let i = 0; i < 65; i++) {
       debugLogger.logError(`Screen_${i}`, new Error(`Fail ${i}`));
@@ -27,6 +87,26 @@ describe('debugLogger', () => {
     expect(logs).toHaveLength(50);
     expect(logs[0].screen).toBe('Screen_15');
     expect(logs[49].screen).toBe('Screen_64');
+  });
+
+  it('persists debug logs in storage and restores them across app restarts', async () => {
+    debugLogger.logError('SettingsScreen', new SyntaxError('Parsing error'));
+    debugLogger.logError('TodayScreen', new RangeError('Out of bounds'));
+
+    await debugLogger.persist();
+
+    expect(mockSettingsStore['debug_logs']).toBeDefined();
+    expect(mockSettingsStore['debug_logs']).toContain('SyntaxError');
+    expect(mockSettingsStore['debug_logs']).toContain('RangeError');
+
+    // Simulate app restart: clear in-memory logs and re-load from persisted storage
+    (debugLogger as any).logs = [];
+    expect(debugLogger.getLogs()).toHaveLength(0);
+
+    const restoredLogs = await debugLogger.loadPersistedLogs();
+    expect(restoredLogs).toHaveLength(2);
+    expect(restoredLogs[0].error_name).toBe('SyntaxError');
+    expect(restoredLogs[1].error_name).toBe('RangeError');
   });
 
   it('formats debug info as JSON string', () => {

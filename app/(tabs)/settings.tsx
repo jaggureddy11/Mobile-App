@@ -120,6 +120,7 @@ export default function SettingsScreen() {
 
   const handleCopyDebugInfo = async () => {
     try {
+      await debugLogger.loadPersistedLogs();
       const debugInfo = debugLogger.formatDebugInfo();
       const logs = debugLogger.getLogs();
       await Share.share({
