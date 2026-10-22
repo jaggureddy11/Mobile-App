@@ -152,6 +152,9 @@ export async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
     // Numbered Migration 003: Add merged_into column for duplicates
     await migrateMergedIntoColumn(db);
 
+    // Numbered Migration 004: SQLite FTS5 Full-Text Search Virtual Table
+    await migrateFts5Table(db);
+
     setStartupMigrationError(null);
   } catch (err: any) {
     const errMsg = err?.message || String(err);
@@ -332,6 +335,49 @@ export async function migratePurgePassword(db: SQLite.SQLiteDatabase): Promise<v
   } catch (err) {
     console.warn('Settings rebuild migration note:', err);
     throw err;
+  }
+}
+
+/**
+ * Numbered Migration 004: FTS5 Virtual Table and automatic sync triggers
+ */
+export async function migrateFts5Table(db: SQLite.SQLiteDatabase): Promise<void> {
+  try {
+    await db.execAsync(`
+      CREATE VIRTUAL TABLE IF NOT EXISTS items_fts USING fts5(
+        id UNINDEXED,
+        title,
+        note,
+        url,
+        tags,
+        site_name
+      );
+
+      CREATE TRIGGER IF NOT EXISTS items_ai AFTER INSERT ON items BEGIN
+        INSERT INTO items_fts(id, title, note, url, tags, site_name)
+        VALUES (new.id, new.title, COALESCE(new.note, ''), COALESCE(new.url, ''), COALESCE(new.tags, ''), COALESCE(new.site_name, ''));
+      END;
+
+      CREATE TRIGGER IF NOT EXISTS items_ad AFTER DELETE ON items BEGIN
+        DELETE FROM items_fts WHERE id = old.id;
+      END;
+
+      CREATE TRIGGER IF NOT EXISTS items_au AFTER UPDATE ON items BEGIN
+        DELETE FROM items_fts WHERE id = old.id;
+        INSERT INTO items_fts(id, title, note, url, tags, site_name)
+        VALUES (new.id, new.title, COALESCE(new.note, ''), COALESCE(new.url, ''), COALESCE(new.tags, ''), COALESCE(new.site_name, ''));
+      END;
+    `);
+
+    // Backfill FTS index for existing items
+    await db.execAsync(`
+      INSERT INTO items_fts(id, title, note, url, tags, site_name)
+      SELECT id, title, COALESCE(note, ''), COALESCE(url, ''), COALESCE(tags, ''), COALESCE(site_name, '')
+      FROM items
+      WHERE id NOT IN (SELECT id FROM items_fts);
+    `);
+  } catch (err: any) {
+    if (__DEV__) console.warn('FTS5 migration note:', err?.message || err);
   }
 }
 

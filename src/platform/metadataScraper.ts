@@ -1,8 +1,12 @@
+import { MinuteOption } from '../domain/types';
+import { cleanScrapedTitle, estimateReadTimeFromWordCount } from '../domain/classification';
+
 export interface UrlMetadata {
   title?: string;
   description?: string;
   imageUrl?: string;
   siteName?: string;
+  estimatedMinutes?: MinuteOption;
 }
 
 function decodeHtmlEntities(str: string): string {
@@ -89,11 +93,29 @@ export async function fetchUrlMetadata(rawUrl: string): Promise<UrlMetadata | nu
       } catch {}
     }
 
+    // 5. Estimated read time from paragraph text word count
+    let estimatedMinutes: MinuteOption | undefined = undefined;
+    const paragraphs = html.match(/<p[^>]*>([\s\S]*?)<\/p>/gi);
+    if (paragraphs && paragraphs.length > 0) {
+      const allText = paragraphs
+        .map((p) => p.replace(/<[^>]+>/g, ' '))
+        .join(' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      const words = allText.split(/\s+/).filter((w) => w.length > 0);
+      if (words.length > 50) {
+        estimatedMinutes = estimateReadTimeFromWordCount(words.length);
+      }
+    }
+
+    const cleanedTitle = cleanScrapedTitle(title, trimmed);
+
     return {
-      title,
+      title: cleanedTitle || title,
       description,
       imageUrl,
       siteName,
+      estimatedMinutes,
     };
   } catch {
     clearTimeout(timeoutId);

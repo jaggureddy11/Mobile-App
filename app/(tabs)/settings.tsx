@@ -19,6 +19,7 @@ import {
   Clock,
   Moon,
   Download,
+  Upload,
   Trash2,
   Heart,
   ChevronRight,
@@ -32,6 +33,8 @@ import { PageHeader, DatabaseUpdateNotice } from '@/components';
 import { colors, typography, spacing, radii, shadows } from '@/theme';
 import { useSettingsStore } from '@/domain/useSettingsStore';
 import { useItemsStore } from '@/domain/useItemsStore';
+import { useCollectionsStore } from '@/domain/useCollectionsStore';
+import { exportBackup, importBackup } from '@/platform/backupService';
 import { NudgeFrequency } from '@/domain/types';
 import { syncService } from '@/platform/syncService';
 import { FEATURES } from '@/config/features';
@@ -41,6 +44,7 @@ import { getStartupMigrationError, retryDatabaseInitialization } from '@/db/data
 export default function SettingsScreen() {
   const { settings, updateSettings, loadSettings } = useSettingsStore();
   const { items, runPurge, loadItems } = useItemsStore();
+  const { loadCollections } = useCollectionsStore();
   const [isSyncing, setIsSyncing] = useState(false);
   const [hasNotificationPermission, setHasNotificationPermission] = useState(true);
   const [migrationError, setMigrationError] = useState<string | null>(getStartupMigrationError());
@@ -117,6 +121,30 @@ export default function SettingsScreen() {
       });
     } catch (err) {
       console.error('Export error:', err);
+    }
+  };
+
+  const handleExportBackup = async () => {
+    try {
+      const res = await exportBackup();
+      if (res.success) {
+        Alert.alert('Backup Exported', `Exported ${res.itemCount} items to JSON backup file.`);
+      }
+    } catch (err: any) {
+      Alert.alert('Export Failed', err?.message || 'Unable to export backup JSON.');
+    }
+  };
+
+  const handleImportBackup = async () => {
+    try {
+      const res = await importBackup();
+      if (res.success) {
+        await loadItems();
+        await loadCollections();
+        Alert.alert('Restore Successful', `Successfully restored ${res.restoredCount} items from JSON backup.`);
+      }
+    } catch (err: any) {
+      Alert.alert('Restore Failed', err?.message || 'Invalid or unreadable JSON backup file.');
     }
   };
 
@@ -320,14 +348,44 @@ export default function SettingsScreen() {
 
             <TouchableOpacity
               style={styles.settingRow}
-              onPress={handleExportCSV}
+              onPress={handleExportBackup}
               activeOpacity={0.7}
             >
               <View style={styles.settingIconBox}>
                 <Download size={20} color={colors.accent} />
               </View>
               <View style={styles.settingTextContainer}>
-                <Text style={styles.settingTitle}>Export your data</Text>
+                <Text style={styles.settingTitle}>Backup Data (JSON)</Text>
+                <Text style={styles.settingSubtitle}>Export complete 1-tap backup JSON file</Text>
+              </View>
+              <ChevronRight size={18} color={colors.accent} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.settingRow}
+              onPress={handleImportBackup}
+              activeOpacity={0.7}
+            >
+              <View style={styles.settingIconBox}>
+                <Upload size={20} color={colors.accent} />
+              </View>
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingTitle}>Restore Data (JSON)</Text>
+                <Text style={styles.settingSubtitle}>Import items from JSON backup file</Text>
+              </View>
+              <ChevronRight size={18} color={colors.accent} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.settingRow}
+              onPress={handleExportCSV}
+              activeOpacity={0.7}
+            >
+              <View style={styles.settingIconBox}>
+                <FileText size={20} color={colors.accent} />
+              </View>
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingTitle}>Export Spreadsheet (CSV)</Text>
                 <Text style={styles.settingSubtitle}>Download all items as clean CSV</Text>
               </View>
               <ChevronRight size={18} color={colors.accent} />

@@ -6,23 +6,10 @@ import { ItemType, DEFAULT_ITEM_MINUTES } from '../domain/types';
 import { itemsRepo } from '../db/itemsRepo';
 import { getStartupMigrationError } from '../db/database';
 import { fetchUrlMetadata } from './metadataScraper';
+import { detectItemClassification, cleanScrapedTitle } from '../domain/classification';
 
 export function detectItemTypeFromUrl(url: string): ItemType {
-  const lower = url.toLowerCase();
-  if (
-    /instagram\.com\/reel\/[a-zA-Z0-9_-]+/i.test(lower) ||
-    /instagram\.com\/reels\/[a-zA-Z0-9_-]+/i.test(lower) && !lower.includes('/audio/') ||
-    lower.includes('instagram.com/reel/') ||
-    lower.includes('tiktok.com') ||
-    lower.includes('youtube.com/shorts')
-  ) {
-    // Exclude general non-video tabs like instagram.com/reels/ (no specific reel) or /audio/
-    if (lower.includes('instagram.com/reels/') && (lower.endsWith('/reels/') || lower.includes('/audio/'))) {
-      return 'link';
-    }
-    return 'reel';
-  }
-  return 'link';
+  return detectItemClassification(url).type;
 }
 
 /**
@@ -87,23 +74,27 @@ export function useListenShareIntent() {
       if (!isMounted) return;
 
       if (title || webUrl) {
-        const type: ItemType = webUrl ? detectItemTypeFromUrl(webUrl) : 'text';
-        const cleanTitle = title?.trim() || (type === 'reel' ? 'Shared Reel' : 'Shared Link');
+        const classification = webUrl ? detectItemClassification(webUrl) : { type: 'text' as ItemType, suggestedMinutes: DEFAULT_ITEM_MINUTES['text'] };
+        const type: ItemType = classification.type;
+        const suggestedMinutes = classification.suggestedMinutes;
+
+        const rawClean = cleanScrapedTitle(title, webUrl);
+        const finalTitle = rawClean || title?.trim() || (type === 'reel' ? 'Shared Reel' : 'Shared Link');
 
         try {
           await addItem({
             type,
-            title: cleanTitle,
+            title: finalTitle,
             url: webUrl || null,
             note: null,
-            minutes: DEFAULT_ITEM_MINUTES[type],
+            minutes: suggestedMinutes,
             image_url: imageUrl || null,
-            site_name: siteName || null,
+            site_name: siteName || (classification.platform || null),
           });
 
           Alert.alert(
             'Saved for later',
-            `"${cleanTitle}" was saved to your calm list.`
+            `"${finalTitle}" was saved to your calm list.`
           );
         } catch (err) {
           console.error('Failed to save shared intent:', err);

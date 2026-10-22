@@ -11,7 +11,7 @@ import {
   Modal,
   AppState,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Compass, Award, Clock, Calendar, CheckCircle2, HelpCircle, Plus, Sparkles } from 'lucide-react-native';
 import {
   PageHeader,
@@ -65,6 +65,17 @@ export default function TodayScreen() {
   // State for "Later" snooze modal
   const [showSnoozeModal, setShowSnoozeModal] = useState<boolean>(false);
   const [migrationError, setMigrationError] = useState<string | null>(getStartupMigrationError());
+
+  // Deep Link Downtime Widget Trigger (remind://today?minutes=5|15|30)
+  const params = typeof useLocalSearchParams === 'function' ? useLocalSearchParams<{ minutes?: string }>() : {};
+  useEffect(() => {
+    if (params && params.minutes) {
+      const mins = parseInt(params.minutes, 10);
+      if (mins === 5 || mins === 15 || mins === 30) {
+        setSelectedMinutes(mins as TimeChipValue);
+      }
+    }
+  }, [params?.minutes, setSelectedMinutes]);
 
   // Initial load
   useEffect(() => {

@@ -11,7 +11,9 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.remind.app",
       "infoPlist": {
-        "UIBackgroundModes": ["remote-notification"]
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
       }
     },
     "android": {
@@ -42,7 +44,8 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 80
         }
-      ]
+      ],
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": true

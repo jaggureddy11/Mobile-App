@@ -18,6 +18,7 @@ jest.mock('expo-router', () => ({
     push: jest.fn(),
     replace: jest.fn(),
   }),
+  useLocalSearchParams: () => ({}),
 }));
 
 jest.mock('@/platform/useListenShareIntent', () => ({
@@ -42,6 +43,7 @@ const mockItem: Item = {
 jest.mock('@/db/itemsRepo', () => ({
   itemsRepo: {
     getAll: jest.fn(() => Promise.resolve([mockItem])),
+    create: jest.fn((item) => Promise.resolve({ id: 'created-id', ...item })),
     recordSurfaceEvent: jest.fn(() => Promise.resolve('event-1')),
     recordSurfaceAction: jest.fn(() => Promise.resolve(undefined)),
     updateStatus: jest.fn(() => Promise.resolve(undefined)),

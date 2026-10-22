@@ -35,6 +35,7 @@ import { useCollectionsStore } from '@/domain/useCollectionsStore';
 import { itemsRepo } from '@/db/itemsRepo';
 import { ItemType, MinuteOption, RemindInterval, DEFAULT_ITEM_MINUTES } from '@/domain/types';
 import { detectItemTypeFromUrl } from '@/platform/useListenShareIntent';
+import { detectItemClassification } from '@/domain/classification';
 import { fetchUrlMetadata, UrlMetadata } from '@/platform/metadataScraper';
 import { FEATURES } from '@/config/features';
 import { getStartupMigrationError } from '@/db/database';
@@ -115,6 +116,10 @@ export default function AddModal() {
           if (meta.description && !note.trim()) {
             setNote(meta.description.slice(0, 200));
           }
+          // If estimated read time is present from article word count, auto-update duration chip
+          if (meta.estimatedMinutes) {
+            setSelectedMinutes(meta.estimatedMinutes);
+          }
         }
       } catch {
         // Safe offline resilience
@@ -124,13 +129,13 @@ export default function AddModal() {
     }, 600);
   };
 
-  // Auto-detect type when URL changes and trigger scraping
+  // Auto-detect type & duration when URL changes and trigger scraping
   const handleUrlChange = (text: string) => {
     setUrl(text);
     if (text.trim().startsWith('http')) {
-      const detected = detectItemTypeFromUrl(text.trim());
-      setSelectedType(detected);
-      setSelectedMinutes(DEFAULT_ITEM_MINUTES[detected]);
+      const classification = detectItemClassification(text.trim());
+      setSelectedType(classification.type);
+      setSelectedMinutes(classification.suggestedMinutes);
       triggerMetadataScrape(text);
     } else {
       setMetadata(null);

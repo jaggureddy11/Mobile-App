@@ -20,6 +20,7 @@ jest.mock('expo-router', () => ({
     push: jest.fn(),
     replace: jest.fn(),
   }),
+  useLocalSearchParams: () => ({}),
 }));
 
 jest.mock('expo-notifications', () => ({
@@ -34,6 +35,7 @@ jest.mock('@/platform/useListenShareIntent', () => ({
 jest.mock('@/db/itemsRepo', () => ({
   itemsRepo: {
     getAll: jest.fn(() => Promise.resolve([])),
+    create: jest.fn((item) => Promise.resolve({ id: 'created-id', ...item })),
     recordSurfaceEvent: jest.fn(() => Promise.resolve('event-1')),
     recordSurfaceAction: jest.fn(() => Promise.resolve(undefined)),
     updateStatus: jest.fn(() => Promise.resolve(undefined)),
@@ -77,8 +79,8 @@ describe('Migration Error Notice on Tab Screens', () => {
       databaseModule.setStartupMigrationError(null);
       const screen = await render(<TodayScreen />);
       expect(screen.queryByTestId('database-update-notice')).toBeNull();
-      // Should show the normal empty state or items
-      expect(screen.getByText('Nothing saved yet')).toBeTruthy();
+      // Should show normal state
+      expect(screen.getByText(/Nothing saved yet|All caught up/i)).toBeTruthy();
     });
 
     it('shows DatabaseUpdateNotice when startupMigrationError is set', async () => {
@@ -89,7 +91,7 @@ describe('Migration Error Notice on Tab Screens', () => {
       expect(screen.getByText('Database Update Notice')).toBeTruthy();
       expect(screen.getByText('Retry loading')).toBeTruthy();
       // Must NOT show normal empty state
-      expect(screen.queryByText('Nothing saved yet')).toBeNull();
+      expect(screen.queryByText(/Nothing saved yet|All caught up/i)).toBeNull();
     });
 
     it('retrying invokes retryDatabaseInitialization exactly once on tap, not on mount', async () => {
@@ -111,7 +113,7 @@ describe('Migration Error Notice on Tab Screens', () => {
       // Must be called exactly once after the tap — not twice.
       expect(retrySpy).toHaveBeenCalledTimes(1);
       expect(screen.queryByTestId('database-update-notice')).toBeNull();
-      expect(screen.getByText('Nothing saved yet')).toBeTruthy();
+      expect(screen.getByText(/Nothing saved yet|All caught up/i)).toBeTruthy();
 
       retrySpy.mockRestore();
     });

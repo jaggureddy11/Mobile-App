@@ -1,4 +1,5 @@
 import { detectItemTypeFromUrl } from '../useListenShareIntent';
+import { detectItemClassification, cleanScrapedTitle, estimateReadTimeFromWordCount } from '@/domain/classification';
 
 describe('detectItemTypeFromUrl URL Pattern Suite', () => {
   // Test Instagram URLs (15 tests)
@@ -95,6 +96,70 @@ describe('detectItemTypeFromUrl URL Pattern Suite', () => {
       ['https://bbc.com/news/technology-12345', 'link'],
     ])('should classify general web url %s as %s', (url, expected) => {
       expect(detectItemTypeFromUrl(url)).toBe(expected);
+    });
+  });
+
+  describe('Smart Duration & Platform Classification', () => {
+    test('YouTube standard videos suggest 15 minutes', () => {
+      const res = detectItemClassification('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+      expect(res.type).toBe('link');
+      expect(res.suggestedMinutes).toBe(15);
+      expect(res.platform).toBe('YouTube');
+    });
+
+    test('Instagram Reels suggest 1 minute', () => {
+      const res = detectItemClassification('https://www.instagram.com/reel/C382x0aA1/');
+      expect(res.type).toBe('reel');
+      expect(res.suggestedMinutes).toBe(1);
+      expect(res.platform).toBe('Instagram Reel');
+    });
+
+    test('Podcasts suggest 30 minutes', () => {
+      const res = detectItemClassification('https://open.spotify.com/episode/123456');
+      expect(res.type).toBe('link');
+      expect(res.suggestedMinutes).toBe(30);
+      expect(res.platform).toBe('Spotify Podcast');
+    });
+
+    test('Substack & NYTimes suggest 15 minutes', () => {
+      const res = detectItemClassification('https://myauthor.substack.com/p/deep-thoughts');
+      expect(res.suggestedMinutes).toBe(15);
+      expect(res.platform).toBe('Substack');
+    });
+  });
+
+  describe('Read Time Estimation from Word Count', () => {
+    test('short articles (<=300 words) -> 1m chip', () => {
+      expect(estimateReadTimeFromWordCount(200)).toBe(1);
+    });
+
+    test('medium articles (301-1800 words) -> 5m chip', () => {
+      expect(estimateReadTimeFromWordCount(1000)).toBe(5);
+    });
+
+    test('long articles (1801-4500 words) -> 15m chip', () => {
+      expect(estimateReadTimeFromWordCount(3000)).toBe(15);
+    });
+
+    test('very long articles (>4500 words) -> 30m chip', () => {
+      expect(estimateReadTimeFromWordCount(6000)).toBe(30);
+    });
+  });
+
+  describe('Clean Scraped Titles', () => {
+    test('cleans Instagram titles', () => {
+      const raw = 'John Doe (@johndoe) on Instagram: "Morning routine for deep focus"';
+      expect(cleanScrapedTitle(raw)).toBe('Morning routine for deep focus');
+    });
+
+    test('cleans YouTube title suffix', () => {
+      const raw = 'Never Gonna Give You Up - YouTube';
+      expect(cleanScrapedTitle(raw)).toBe('Never Gonna Give You Up');
+    });
+
+    test('cleans Medium title suffix', () => {
+      const raw = 'The Art of Mindful Software | by Jane | Medium';
+      expect(cleanScrapedTitle(raw)).toBe('The Art of Mindful Software');
     });
   });
 });

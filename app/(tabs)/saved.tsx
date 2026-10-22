@@ -20,6 +20,7 @@ import {
   Trash2,
   X,
   Check,
+  Search,
 } from 'lucide-react-native';
 import { PageHeader, ListItem, DatabaseUpdateNotice } from '@/components';
 import { colors, typography, spacing, radii, shadows } from '@/theme';
@@ -53,6 +54,7 @@ export default function SavedScreen() {
 
   const [viewMode, setViewMode] = useState<SavedViewMode>('items');
   const [activeFilter, setActiveFilter] = useState<CategoryFilter>('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedCollection, setSelectedCollection] = useState<Collection | null>(null);
   const [migrationError, setMigrationError] = useState<string | null>(getStartupMigrationError());
 
@@ -117,6 +119,19 @@ export default function SavedScreen() {
 
   // Filter items
   const filteredItems = items.filter((item) => {
+    // Search query filter (instant FTS matching across titles, notes, tags, links)
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      const matchTitle = item.title.toLowerCase().includes(q);
+      const matchNote = item.note?.toLowerCase().includes(q);
+      const matchUrl = item.url?.toLowerCase().includes(q);
+      const matchSite = item.site_name?.toLowerCase().includes(q);
+      const matchTag = item.tags?.some((t) => t.toLowerCase().includes(q));
+      if (!matchTitle && !matchNote && !matchUrl && !matchSite && !matchTag) {
+        return false;
+      }
+    }
+
     // If inside a collection detail view
     if (selectedCollection) {
       if (item.collection_id !== selectedCollection.id) return false;
@@ -142,6 +157,24 @@ export default function SavedScreen() {
           title={selectedCollection ? selectedCollection.name : 'Your Collection'}
           categoryTag={selectedCollection ? 'COLLECTION' : 'RE:MIND'}
         />
+
+        {/* Instant Search Bar */}
+        <View style={styles.searchContainer}>
+          <Search size={18} color={colors.accent} style={{ marginRight: 8 }} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search saved items, tags, links..."
+            placeholderTextColor="rgba(80, 70, 60, 0.4)"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            autoCorrect={false}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <X size={16} color={colors.accent} />
+            </TouchableOpacity>
+          )}
+        </View>
 
         {migrationError ? (
           <DatabaseUpdateNotice onRetrySuccess={handleRetryMigration} />
@@ -464,6 +497,24 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
+  },
+  // Search Bar
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(212, 196, 176, 0.25)',
+    borderRadius: radii.pill,
+    marginHorizontal: spacing.xxl,
+    marginBottom: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 8,
+  },
+  searchInput: {
+    flex: 1,
+    ...typography.presets.body,
+    fontSize: 14,
+    color: colors.textPrimary,
+    padding: 0,
   },
   // Tab Switcher
   tabSwitcher: {
