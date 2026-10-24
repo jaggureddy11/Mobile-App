@@ -99,6 +99,8 @@ export default function OnboardingScreen() {
                 onPress={() => setStep((s) => (s - 1) as 1 | 2 | 3 | 4)}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 activeOpacity={0.7}
+                accessibilityLabel="Go back"
+                testID="onboarding-back-btn"
               >
                 <ArrowLeft size={18} color={colors.textPrimary} />
               </TouchableOpacity>
