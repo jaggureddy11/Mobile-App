@@ -11,6 +11,7 @@ describe('backupService: Import Validation, Transaction Rollback & Security', ()
   let mockDb: any;
   let itemsTable: any[];
   let collectionsTable: any[];
+  let settingsTable: { key: string; value: string }[];
 
   beforeEach(() => {
     itemsTable = [
