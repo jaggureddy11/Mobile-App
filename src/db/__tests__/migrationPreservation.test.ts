@@ -8,6 +8,7 @@ import {
   migrateUrlIndex,
   migrateMergedIntoColumn,
   migratePurgePassword,
+  migrateDropFts5Cleanup,
 } from '../database';
 
 describe('Database Migration & Data Preservation', () => {
@@ -424,6 +425,11 @@ describe('Database Migration & Data Preservation', () => {
     txnRecordedCalls.length = 0;
     await expect(migrateMergedIntoColumn(guardedDb)).resolves.not.toThrow();
     expect(txnRecordedCalls.some((c) => c.sql.includes('ALTER TABLE items ADD COLUMN merged_into'))).toBe(true);
+
+    // 4. Test real migrateDropFts5Cleanup: must run inside exclusive transaction using txn
+    txnRecordedCalls.length = 0;
+    await expect(migrateDropFts5Cleanup(guardedDb)).resolves.not.toThrow();
+    expect(txnRecordedCalls.some((c) => c.sql.includes('DROP TABLE IF EXISTS items_fts'))).toBe(true);
   });
 
   it('proves that retryDatabaseInitialization flushes in-memory debug log buffer to SQLite upon successful retry', async () => {

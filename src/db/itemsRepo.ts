@@ -244,27 +244,13 @@ export const itemsRepo = {
     if (!query || !query.trim()) return this.getAll();
     const db = await getDatabase();
     const clean = query.trim().replace(/['"]/g, '');
-    const searchPattern = `${clean}*`;
-
-    try {
-      const rows = await db.getAllAsync<any>(
-        `SELECT i.* FROM items i
-         JOIN items_fts fts ON i.id = fts.id
-         WHERE items_fts MATCH ?
-         ORDER BY i.created_at DESC`,
-        [searchPattern]
-      );
-      return rows.map(deserializeItem);
-    } catch {
-      // Fallback to LIKE query if FTS syntax is not active
-      const likeQuery = `%${clean}%`;
-      const rows = await db.getAllAsync<any>(
-        `SELECT * FROM items
-         WHERE title LIKE ? OR note LIKE ? OR url LIKE ? OR tags LIKE ? OR site_name LIKE ?
-         ORDER BY created_at DESC`,
-        [likeQuery, likeQuery, likeQuery, likeQuery, likeQuery]
-      );
-      return rows.map(deserializeItem);
-    }
+    const likeQuery = `%${clean}%`;
+    const rows = await db.getAllAsync<any>(
+      `SELECT * FROM items
+       WHERE title LIKE ? OR note LIKE ? OR url LIKE ? OR tags LIKE ? OR site_name LIKE ?
+       ORDER BY created_at DESC`,
+      [likeQuery, likeQuery, likeQuery, likeQuery, likeQuery]
+    );
+    return rows.map(deserializeItem);
   },
 };

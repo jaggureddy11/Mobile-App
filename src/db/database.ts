@@ -152,8 +152,8 @@ export async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
     // Numbered Migration 003: Add merged_into column for duplicates
     await migrateMergedIntoColumn(db);
 
-    // Numbered Migration 004: SQLite FTS5 Full-Text Search Virtual Table
-    await migrateFts5Table(db);
+    // Numbered Migration 004: Drop unverified FTS5 virtual table and triggers if present
+    await migrateDropFts5Cleanup(db);
 
     setStartupMigrationError(null);
   } catch (err: any) {
@@ -339,45 +339,21 @@ export async function migratePurgePassword(db: SQLite.SQLiteDatabase): Promise<v
 }
 
 /**
- * Numbered Migration 004: FTS5 Virtual Table and automatic sync triggers
+ * Numbered Migration 004: Clean drop of unverified FTS5 virtual table and triggers if present
  */
-export async function migrateFts5Table(db: SQLite.SQLiteDatabase): Promise<void> {
+export async function migrateDropFts5Cleanup(db: SQLite.SQLiteDatabase): Promise<void> {
   try {
-    await db.execAsync(`
-      CREATE VIRTUAL TABLE IF NOT EXISTS items_fts USING fts5(
-        id UNINDEXED,
-        title,
-        note,
-        url,
-        tags,
-        site_name
-      );
-
-      CREATE TRIGGER IF NOT EXISTS items_ai AFTER INSERT ON items BEGIN
-        INSERT INTO items_fts(id, title, note, url, tags, site_name)
-        VALUES (new.id, new.title, COALESCE(new.note, ''), COALESCE(new.url, ''), COALESCE(new.tags, ''), COALESCE(new.site_name, ''));
-      END;
-
-      CREATE TRIGGER IF NOT EXISTS items_ad AFTER DELETE ON items BEGIN
-        DELETE FROM items_fts WHERE id = old.id;
-      END;
-
-      CREATE TRIGGER IF NOT EXISTS items_au AFTER UPDATE ON items BEGIN
-        DELETE FROM items_fts WHERE id = old.id;
-        INSERT INTO items_fts(id, title, note, url, tags, site_name)
-        VALUES (new.id, new.title, COALESCE(new.note, ''), COALESCE(new.url, ''), COALESCE(new.tags, ''), COALESCE(new.site_name, ''));
-      END;
-    `);
-
-    // Backfill FTS index for existing items
-    await db.execAsync(`
-      INSERT INTO items_fts(id, title, note, url, tags, site_name)
-      SELECT id, title, COALESCE(note, ''), COALESCE(url, ''), COALESCE(tags, ''), COALESCE(site_name, '')
-      FROM items
-      WHERE id NOT IN (SELECT id FROM items_fts);
-    `);
+    await runExclusiveTransaction(db, async (txn) => {
+      await txn.execAsync(`
+        DROP TRIGGER IF EXISTS items_ai;
+        DROP TRIGGER IF EXISTS items_ad;
+        DROP TRIGGER IF EXISTS items_au;
+        DROP TABLE IF EXISTS items_fts;
+      `);
+    });
   } catch (err: any) {
-    if (__DEV__) console.warn('FTS5 migration note:', err?.message || err);
+    if (__DEV__) console.warn('FTS5 cleanup migration note:', err?.message || err);
+    throw err;
   }
 }
 
