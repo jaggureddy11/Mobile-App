@@ -55,7 +55,7 @@ export async function retryDatabaseInitialization(customDb?: SQLite.SQLiteDataba
  * This prevents concurrent background or share-intent operations from reading or writing
  * half-migrated schemas while numbered migrations are running.
  */
-async function runExclusiveTransaction(
+export async function runExclusiveTransaction(
   db: SQLite.SQLiteDatabase,
   action: (txn: SQLite.SQLiteDatabase) => Promise<void>
 ): Promise<void> {

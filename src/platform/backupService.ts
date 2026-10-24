@@ -4,8 +4,8 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { itemsRepo } from '../db/itemsRepo';
 import { collectionsRepo } from '../db/collectionsRepo';
 import { settingsRepo } from '../db/settingsRepo';
-import { getDatabase } from '../db/database';
-import { Item, Collection, UserSettings, ItemType } from '../domain/types';
+import { getDatabase, runExclusiveTransaction } from '../db/database';
+import { Item, Collection, UserSettings, ItemType, DEFAULT_ITEM_MINUTES } from '../domain/types';
 import { normalizeUrl } from '../domain/urlUtils';
 import * as Crypto from 'expo-crypto';
 
@@ -21,6 +21,16 @@ export const MAX_BACKUP_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB limit
 const VALID_ITEM_TYPES = new Set<ItemType>(['link', 'reel', 'text', 'task', 'activity']);
 const FORBIDDEN_SECRET_KEYS = ['password', 'user_password', 'secret', 'token', 'auth_token', 'private_key'];
 
+// Whitelist of user preference settings allowed to be exported or imported
+export const SETTINGS_WHITELIST = new Set<string>([
+  'nudge_frequency',
+  'nudge_time',
+  'quiet_hours_start',
+  'quiet_hours_end',
+  'default_chip',
+  'onboarding_completed',
+]);
+
 export interface ReMindBackup {
   version: number;
   exported_at: string;
@@ -28,7 +38,7 @@ export interface ReMindBackup {
   data: {
     items: Item[];
     collections: Collection[];
-    settings?: Partial<UserSettings>;
+    settings?: Record<string, any>;
   };
 }
 
@@ -82,9 +92,10 @@ export function validateBackupData(backup: any): ReMindBackup {
       throw new Error(`Invalid item record at index ${i}: unrecognized type "${item.type}".`);
     }
 
+    // Minutes is optional: allowed values are 1, 5, 15, 30 or null/undefined
     if (item.minutes !== undefined && item.minutes !== null) {
-      if (typeof item.minutes !== 'number' || item.minutes <= 0) {
-        throw new Error(`Invalid item record at index ${i}: "minutes" must be a positive number.`);
+      if (![1, 5, 15, 30].includes(item.minutes)) {
+        throw new Error(`Invalid item record at index ${i}: "minutes" must be 1, 5, 15, 30 or null/omitted.`);
       }
     }
   }
@@ -128,26 +139,40 @@ export function parseAndValidateBackupString(fileContent: string): ReMindBackup 
 }
 
 /**
- * Restores validated backup data into SQLite inside a single atomic transaction.
+ * Restores validated backup data into SQLite inside an exclusive atomic transaction (txn).
  * Guarantees that:
  * - If any SQL statement or error occurs mid-import, the transaction rolls back completely,
  *   leaving all pre-existing records untouched.
  * - Normalized-URL duplicate check is run against both existing pending items and within the batch.
- * - Secret fields are explicitly filtered out.
+ * - Settings import strictly whitelists user preference keys and ignores internal keys.
+ * - Fresh surface/snooze state for pending items.
  */
 export async function restoreBackupData(
-  backup: ReMindBackup
+  backup: ReMindBackup,
+  customDb?: any
 ): Promise<{ success: boolean; restoredCount: number; skippedDuplicates: number }> {
-  const db = await getDatabase();
+  const db = customDb || (await getDatabase());
   let restoredCount = 0;
   let skippedDuplicates = 0;
 
   // Track seen normalized URLs in the current batch to avoid importing duplicates within the file itself
   const seenBatchUrls = new Set<string>();
 
-  // (b) Run in one transaction and leave existing data untouched on any failure
-  await db.withTransactionAsync(async () => {
-    // 1. Restore collections first
+  // (c) Run inside exclusive transaction using txn handle
+  await runExclusiveTransaction(db, async (txn) => {
+    // 1. Restore settings using strict user preference whitelist
+    if (backup.data.settings && typeof backup.data.settings === 'object') {
+      for (const [key, val] of Object.entries(backup.data.settings)) {
+        if (SETTINGS_WHITELIST.has(key) && val !== undefined && val !== null) {
+          await txn.runAsync(
+            'INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)',
+            [key, String(val)]
+          );
+        }
+      }
+    }
+
+    // 2. Restore collections first
     if (Array.isArray(backup.data.collections)) {
       for (const col of backup.data.collections) {
         const cleanCol = sanitizeRecord(col);
@@ -156,15 +181,15 @@ export async function restoreBackupData(
         const colColor = cleanCol.color || null;
         const createdAt = cleanCol.created_at || new Date().toISOString();
 
-        // Insert or keep existing collection
-        await db.runAsync(
+        // Insert or keep existing collection using txn handle
+        await txn.runAsync(
           'INSERT OR IGNORE INTO collections (id, name, color, created_at) VALUES (?, ?, ?, ?)',
           [colId, colName, colColor, createdAt]
         );
       }
     }
 
-    // 2. Restore items with normalized-URL duplicate checking
+    // 3. Restore items with normalized-URL duplicate checking
     for (const item of backup.data.items) {
       const cleanItem = sanitizeRecord(item);
       const url = cleanItem.url?.trim() || null;
@@ -179,8 +204,8 @@ export async function restoreBackupData(
           continue;
         }
 
-        // Check if an existing pending item already has this normalized URL in the database
-        const existing = await db.getFirstAsync<{ id: string }>(
+        // Check if an existing pending item already has this normalized URL in the database using txn
+        const existing = await txn.getFirstAsync<{ id: string }>(
           "SELECT id FROM items WHERE normalized_url = ? AND status = 'pending' LIMIT 1",
           [normalizedUrl]
         );
@@ -197,13 +222,25 @@ export async function restoreBackupData(
       const itemType = cleanItem.type || 'link';
       const title = cleanItem.title.trim();
       const note = cleanItem.note?.trim() || null;
-      const minutes = cleanItem.minutes || 5;
+      // (a) minutes is optional: allowed values 1, 5, 15, 30 or null; if null/omitted, fallback to default
+      const minutes =
+        cleanItem.minutes !== undefined && cleanItem.minutes !== null
+          ? cleanItem.minutes
+          : DEFAULT_ITEM_MINUTES[itemType] ?? 5;
+
       const createdAt = cleanItem.created_at || new Date().toISOString();
       const doneAt = cleanItem.done_at || null;
       const letGoAt = cleanItem.let_go_at || null;
-      const resurfacedAt = cleanItem.resurfaced_at || null;
-      const snoozedUntil = cleanItem.snoozed_until || null;
-      const timesSurfaced = typeof cleanItem.times_surfaced === 'number' ? cleanItem.times_surfaced : 0;
+
+      // (d) Intentional Design Choice: Restored pending items receive a fresh surface/snooze state
+      // (times_surfaced = 0, snoozed_until = null, resurfaced_at = null) so stale timestamps
+      // from past devices do not suppress items in the downtime queue. Completed items (done/let_go)
+      // preserve their terminal status and historical done_at / let_go_at timestamps.
+      const isTerminal = status === 'done' || status === 'let_go';
+      const resurfacedAt = isTerminal ? cleanItem.resurfaced_at || null : null;
+      const snoozedUntil = isTerminal ? cleanItem.snoozed_until || null : null;
+      const timesSurfaced = isTerminal && typeof cleanItem.times_surfaced === 'number' ? cleanItem.times_surfaced : 0;
+
       const collectionId = cleanItem.collection_id || null;
       const tags = JSON.stringify(cleanItem.tags || []);
       const remindInterval = cleanItem.remind_interval || null;
@@ -212,7 +249,7 @@ export async function restoreBackupData(
       const siteName = cleanItem.site_name || null;
       const mergedInto = cleanItem.merged_into || null;
 
-      await db.runAsync(
+      await txn.runAsync(
         `INSERT INTO items (
           id, type, title, url, note, minutes, status, created_at, done_at, let_go_at,
           resurfaced_at, snoozed_until, times_surfaced, collection_id, tags,
@@ -252,7 +289,7 @@ export async function restoreBackupData(
 
 /**
  * Exports complete app database to a sanitized JSON backup file and triggers native share sheet.
- * (d) Never reads or writes a password or other secret field.
+ * Never exports password or internal keys.
  */
 export async function exportBackup(): Promise<{ success: boolean; itemCount: number }> {
   try {
@@ -263,7 +300,14 @@ export async function exportBackup(): Promise<{ success: boolean; itemCount: num
     // Sanitize every record to ensure no secret field can ever be exported
     const items = rawItems.map((item) => sanitizeRecord(item as any));
     const collections = rawCollections.map((col) => sanitizeRecord(col as any));
-    const settings = sanitizeRecord(rawSettings as any);
+    
+    // Only export whitelisted user preference settings
+    const settings: Record<string, any> = {};
+    for (const [key, val] of Object.entries(rawSettings as any)) {
+      if (SETTINGS_WHITELIST.has(key)) {
+        settings[key] = val;
+      }
+    }
 
     const backup: ReMindBackup = {
       version: 1,
@@ -328,7 +372,7 @@ export async function importBackup(): Promise<{ success: boolean; restoredCount:
     // Validates JSON syntax, version, and record shapes before any write
     const backup = parseAndValidateBackupString(fileContent);
 
-    // Restores within an atomic transaction with duplicate checks
+    // Restores within an exclusive transaction with duplicate checks
     return await restoreBackupData(backup);
   } catch (err: any) {
     console.error('Backup import error:', err);

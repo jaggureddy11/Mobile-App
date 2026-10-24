@@ -10,6 +10,7 @@ import {
   migratePurgePassword,
   migrateDropFts5Cleanup,
 } from '../database';
+import { restoreBackupData } from '../../platform/backupService';
 
 describe('Database Migration & Data Preservation', () => {
   let itemsTable: any[];
@@ -430,6 +431,34 @@ describe('Database Migration & Data Preservation', () => {
     txnRecordedCalls.length = 0;
     await expect(migrateDropFts5Cleanup(guardedDb)).resolves.not.toThrow();
     expect(txnRecordedCalls.some((c) => c.sql.includes('DROP TABLE IF EXISTS items_fts'))).toBe(true);
+
+    // 5. Test real restoreBackupData: must run inside exclusive transaction using txn exclusively
+    txnRecordedCalls.length = 0;
+    const testBackup: any = {
+      version: 1,
+      exported_at: '2026-10-24T12:00:00Z',
+      app_name: 'Re:Mind',
+      data: {
+        settings: { nudge_time: '20:00', debug_logs: 'skip_me' },
+        collections: [{ id: 'col-tx', name: 'Txn Collection', created_at: '' }],
+        items: [
+          {
+            id: 'item-tx',
+            type: 'link',
+            title: 'Txn Backup Item',
+            url: 'https://example.com/txn-test',
+            minutes: 5,
+            status: 'pending',
+            created_at: '2026-10-24T12:00:00Z',
+          },
+        ],
+      },
+    };
+    await expect(restoreBackupData(testBackup, guardedDb)).resolves.not.toThrow();
+    expect(guardedDb.withExclusiveTransactionAsync).toHaveBeenCalled();
+    expect(txnRecordedCalls.some((c) => c.sql.includes('INSERT INTO items'))).toBe(true);
+    expect(txnRecordedCalls.some((c) => c.sql.includes('INSERT OR REPLACE INTO settings'))).toBe(true);
+    expect(txnRecordedCalls.some((c) => c.sql.includes('INSERT OR IGNORE INTO collections'))).toBe(true);
   });
 
   it('proves that retryDatabaseInitialization flushes in-memory debug log buffer to SQLite upon successful retry', async () => {
