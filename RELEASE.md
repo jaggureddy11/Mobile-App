@@ -2,7 +2,7 @@
 
 ## 1. App Configuration (`app.json`)
 - **Brand / Display Name**: `Re:Mind`
-- **Package / Bundle ID**: `com.remind.app`
+- **Package / Bundle ID**: `com.jaggureddy.remind`
 - **URL Scheme**: `remind://`
 - **Supported Orientation**: Portrait-only
 - **Theme Background**: `#FBF9F6` (Matches splash screen and brand palette)
@@ -10,7 +10,7 @@
   - `expo-router` (File-based navigation)
   - `expo-sqlite` (Local offline-first storage with WAL mode enabled)
   - `expo-notifications` (Background daily nudges and permissions)
-  - `expo-share-intent` (iOS App Group: `group.com.remind.app`, Android intent filters)
+  - `expo-share-intent` (iOS App Group: `group.com.jaggureddy.remind`, Android intent filters)
   - `expo-splash-screen` (Centered brand icon with background matching native canvas)
 
 ---
@@ -60,7 +60,7 @@ Before submitting to Apple App Store or Google Play:
 1. **Automated Suite**: Run `npm test` (all test suites must pass).
 2. **Typecheck**: Run `npx tsc --noEmit` (clean exit, 0 errors).
 3. **Hardware Matrix**: Complete every row in [TESTING.md](file:///Users/apple/Desktop/PROJECTS/Later%20app/TESTING.md) on physical iOS and Android hardware.
-4. **App Store Connect**: Ensure App Group `group.com.remind.app` is provisioned in the Apple Developer portal for the Share Extension.
+4. **App Store Connect**: Ensure App Group `group.com.jaggureddy.remind` is provisioned in the Apple Developer portal for the Share Extension.
 
 ---
 

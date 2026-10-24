@@ -9,7 +9,7 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.remind.app",
+      "bundleIdentifier": "com.jaggureddy.remind",
       "infoPlist": {
         "UIBackgroundModes": [
           "remote-notification"
@@ -22,7 +22,7 @@
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "package": "com.remind.app",
+      "package": "com.jaggureddy.remind",
       "predictiveBackGestureEnabled": false
     },
     "plugins": [
@@ -33,7 +33,7 @@
         "expo-share-intent",
         {
           "ios": {
-            "AppGroup": "group.com.remind.app"
+            "AppGroup": "group.com.jaggureddy.remind"
           }
         }
       ],
