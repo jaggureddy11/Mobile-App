@@ -51,6 +51,33 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "build": {
+          "experimental": {
+            "ios": {
+              "appExtensions": [
+                {
+                  "targetName": "ShareExtension",
+                  "bundleIdentifier": "com.jaggureddy.remind.share-extension",
+                  "entitlements": {
+                    "com.apple.security.application-groups": [
+                      "group.com.jaggureddy.remind"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "projectId": "880affa9-9cfd-4294-b071-047f7a676651"
+      }
     }
   }
 }
