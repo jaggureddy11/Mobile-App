@@ -93,7 +93,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   nudge_time: '19:00',
   quiet_hours_start: '22:00',
   quiet_hours_end: '08:00',
-  onboarding_completed: true,
+  onboarding_completed: false,
   default_chip: 15,
   user_email: null,
   cloud_sync_enabled: true,
