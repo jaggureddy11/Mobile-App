@@ -32,4 +32,5 @@ Re:Mind is built on a simple foundation: **your saved items, notes, and habits b
 
 ### 7. Exporting and Deleting Your Data
 - You can export all your saved items at any time into a standard, readable CSV file using **Settings > Export your data**.
+- Backup files (JSON) contain all saved items, collections, and settings and are shared only when the user explicitly chooses.
 - You can remove individual items, purge discarded items at will, or uninstall the app to delete everything instantly.
