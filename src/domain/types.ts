@@ -73,6 +73,7 @@ export interface UserSettings {
   quiet_hours_start: string; // e.g., "22:00"
   quiet_hours_end: string; // e.g., "08:00"
   onboarding_completed: boolean;
+  default_chip?: MinuteOption;
   user_email?: string | null;
   cloud_sync_enabled?: boolean;
   last_synced_at?: string | null;
@@ -93,6 +94,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   quiet_hours_start: '22:00',
   quiet_hours_end: '08:00',
   onboarding_completed: true,
+  default_chip: 5,
   user_email: null,
   cloud_sync_enabled: true,
   last_synced_at: null,

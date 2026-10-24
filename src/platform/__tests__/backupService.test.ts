@@ -2,6 +2,7 @@ import {
   parseAndValidateBackupString,
   validateBackupData,
   restoreBackupData,
+  generateBackupData,
   MAX_BACKUP_SIZE_BYTES,
   ReMindBackup,
 } from '../backupService';
@@ -501,5 +502,72 @@ describe('backupService: Import Validation, Transaction Rollback & Security', ()
     expect(restoredDone.status).toBe('done');
     expect(restoredDone.done_at).toBe('2026-01-02T15:30:00Z');
     expect(restoredDone.times_surfaced).toBe(3);
+  });
+
+  // 11. Round-trip settings test: sets each preference setting, exports, wipes DB, imports, and compares
+  test('round-trip settings test: sets each preference setting, exports, wipes DB, imports, and verifies complete fidelity', async () => {
+    const { settingsRepo } = require('../../db/settingsRepo');
+
+    // 1. Set each whitelisted user preference setting
+    await settingsRepo.saveSettings({
+      nudge_frequency: 'weekly',
+      nudge_time: '21:45',
+      quiet_hours_start: '23:30',
+      quiet_hours_end: '07:15',
+      onboarding_completed: true,
+      default_chip: 15,
+    });
+
+    // Also set internal runtime keys in the mock settings table to verify they do NOT round-trip
+    await settingsRepo.setNotificationPrompted(true);
+    settingsTable.push({ key: 'debug_logs', value: 'internal_log_trace' });
+
+    const beforeSettings = await settingsRepo.getSettings();
+    expect(beforeSettings.nudge_frequency).toBe('weekly');
+    expect(beforeSettings.nudge_time).toBe('21:45');
+    expect(beforeSettings.quiet_hours_start).toBe('23:30');
+    expect(beforeSettings.quiet_hours_end).toBe('07:15');
+    expect(beforeSettings.onboarding_completed).toBe(true);
+    expect(beforeSettings.default_chip).toBe(15);
+
+    // 2. Export (generates sanitized backup data)
+    const backup = await generateBackupData();
+    expect(backup.data.settings).toBeDefined();
+    expect(backup.data.settings).toEqual({
+      nudge_frequency: 'weekly',
+      nudge_time: '21:45',
+      quiet_hours_start: '23:30',
+      quiet_hours_end: '07:15',
+      onboarding_completed: true,
+      default_chip: 15,
+    });
+    // Internal keys must NOT be present in exported backup
+    expect((backup.data.settings as any).debug_logs).toBeUndefined();
+    expect((backup.data.settings as any).notification_prompted).toBeUndefined();
+
+    // 3. Wipe database settings
+    settingsTable = [];
+    const wipedSettings = await settingsRepo.getSettings();
+    // After wiping, settingsRepo returns DEFAULT_SETTINGS
+    expect(wipedSettings.nudge_frequency).toBe('daily');
+    expect(wipedSettings.nudge_time).toBe('19:00');
+    expect(wipedSettings.default_chip).toBe(5);
+
+    // 4. Import via restoreBackupData
+    const restoreResult = await restoreBackupData(backup);
+    expect(restoreResult.success).toBe(true);
+
+    // 5. Compare: verify restored settings match the exact configured preferences
+    const afterSettings = await settingsRepo.getSettings();
+    expect(afterSettings.nudge_frequency).toBe('weekly');
+    expect(afterSettings.nudge_time).toBe('21:45');
+    expect(afterSettings.quiet_hours_start).toBe('23:30');
+    expect(afterSettings.quiet_hours_end).toBe('07:15');
+    expect(afterSettings.onboarding_completed).toBe(true);
+    expect(afterSettings.default_chip).toBe(15);
+
+    // Internal keys remain untouched / absent
+    expect(await settingsRepo.isNotificationPrompted()).toBe(false);
+    expect(settingsTable.find((s) => s.key === 'debug_logs')).toBeUndefined();
   });
 });

@@ -288,37 +288,45 @@ export async function restoreBackupData(
 }
 
 /**
+ * Generates sanitized in-memory backup object containing all items, collections,
+ * and strictly whitelisted user preference settings.
+ */
+export async function generateBackupData(): Promise<ReMindBackup> {
+  const rawItems = await itemsRepo.getAll();
+  const rawCollections = await collectionsRepo.getAll();
+  const rawSettings = await settingsRepo.getSettings();
+
+  // Sanitize every record to ensure no secret field can ever be exported
+  const items = rawItems.map((item) => sanitizeRecord(item as any));
+  const collections = rawCollections.map((col) => sanitizeRecord(col as any));
+
+  // Only export whitelisted user preference settings
+  const settings: Record<string, any> = {};
+  for (const [key, val] of Object.entries(rawSettings as any)) {
+    if (SETTINGS_WHITELIST.has(key) && val !== undefined && val !== null) {
+      settings[key] = val;
+    }
+  }
+
+  return {
+    version: 1,
+    exported_at: new Date().toISOString(),
+    app_name: 'Re:Mind',
+    data: {
+      items,
+      collections,
+      settings,
+    },
+  };
+}
+
+/**
  * Exports complete app database to a sanitized JSON backup file and triggers native share sheet.
  * Never exports password or internal keys.
  */
 export async function exportBackup(): Promise<{ success: boolean; itemCount: number }> {
   try {
-    const rawItems = await itemsRepo.getAll();
-    const rawCollections = await collectionsRepo.getAll();
-    const rawSettings = await settingsRepo.getSettings();
-
-    // Sanitize every record to ensure no secret field can ever be exported
-    const items = rawItems.map((item) => sanitizeRecord(item as any));
-    const collections = rawCollections.map((col) => sanitizeRecord(col as any));
-    
-    // Only export whitelisted user preference settings
-    const settings: Record<string, any> = {};
-    for (const [key, val] of Object.entries(rawSettings as any)) {
-      if (SETTINGS_WHITELIST.has(key)) {
-        settings[key] = val;
-      }
-    }
-
-    const backup: ReMindBackup = {
-      version: 1,
-      exported_at: new Date().toISOString(),
-      app_name: 'Re:Mind',
-      data: {
-        items,
-        collections,
-        settings,
-      },
-    };
+    const backup = await generateBackupData();
 
     const jsonString = JSON.stringify(backup, null, 2);
     const dateStr = new Date().toISOString().split('T')[0];
@@ -337,7 +345,7 @@ export async function exportBackup(): Promise<{ success: boolean; itemCount: num
       });
     }
 
-    return { success: true, itemCount: items.length };
+    return { success: true, itemCount: backup.data.items.length };
   } catch (err: any) {
     console.error('Backup export error:', err);
     throw err;
