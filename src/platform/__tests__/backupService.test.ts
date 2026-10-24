@@ -551,7 +551,7 @@ describe('backupService: Import Validation, Transaction Rollback & Security', ()
     // After wiping, settingsRepo returns DEFAULT_SETTINGS
     expect(wipedSettings.nudge_frequency).toBe('daily');
     expect(wipedSettings.nudge_time).toBe('19:00');
-    expect(wipedSettings.default_chip).toBe(5);
+    expect(wipedSettings.default_chip).toBe(15);
 
     // 4. Import via restoreBackupData
     const restoreResult = await restoreBackupData(backup);

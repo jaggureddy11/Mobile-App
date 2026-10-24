@@ -60,6 +60,7 @@ describe('Domain: useItemsStore', () => {
     useItemsStore.setState({
       items: [],
       selectedMinutes: 15,
+      hasManuallySelectedMinutes: false,
       activeItem: null,
       isLoading: true,
       undoItem: null,
@@ -192,5 +193,63 @@ describe('Domain: useItemsStore', () => {
 
     expect(requestNotificationPermission).not.toHaveBeenCalled();
     expect(settingsRepo.setNotificationPrompted).toHaveBeenCalledWith(true);
+  });
+
+  describe('default_chip setting', () => {
+    it('defaults to 15-minute chip on first launch without user customization', async () => {
+      const { settingsRepo } = require('../../db/settingsRepo');
+      (settingsRepo.getSettings as jest.Mock).mockResolvedValue({
+        nudge_frequency: 'daily',
+        default_chip: 15,
+      });
+
+      useItemsStore.setState({
+        items: [],
+        selectedMinutes: 15,
+        hasManuallySelectedMinutes: false,
+      });
+
+      await useItemsStore.getState().loadItems();
+      expect(useItemsStore.getState().selectedMinutes).toBe(15);
+    });
+
+    it('respects customized default_chip setting when user has not manually selected chip', async () => {
+      const { settingsRepo } = require('../../db/settingsRepo');
+      (settingsRepo.getSettings as jest.Mock).mockResolvedValue({
+        nudge_frequency: 'daily',
+        default_chip: 30,
+      });
+
+      useItemsStore.setState({
+        items: [],
+        selectedMinutes: 15,
+        hasManuallySelectedMinutes: false,
+      });
+
+      await useItemsStore.getState().loadItems();
+      expect(useItemsStore.getState().selectedMinutes).toBe(30);
+    });
+
+    it('preserves user manual chip selection over default_chip during session', async () => {
+      const { settingsRepo } = require('../../db/settingsRepo');
+      (settingsRepo.getSettings as jest.Mock).mockResolvedValue({
+        nudge_frequency: 'daily',
+        default_chip: 30,
+      });
+
+      useItemsStore.setState({
+        items: [],
+        selectedMinutes: 15,
+        hasManuallySelectedMinutes: false,
+      });
+
+      // User explicitly picks 5-minute chip
+      useItemsStore.getState().setSelectedMinutes(5);
+      expect(useItemsStore.getState().selectedMinutes).toBe(5);
+
+      // Re-running loadItems in the same session does not stomp user choice
+      await useItemsStore.getState().loadItems();
+      expect(useItemsStore.getState().selectedMinutes).toBe(5);
+    });
   });
 });

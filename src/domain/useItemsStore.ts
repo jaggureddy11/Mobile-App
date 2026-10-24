@@ -11,6 +11,7 @@ import { requestNotificationPermission, scheduleNudgeNotification } from '../pla
 interface ItemsState {
   items: Item[];
   selectedMinutes: MinuteOption;
+  hasManuallySelectedMinutes?: boolean;
   activeItem: Item | null;
   isLoading: boolean;
   undoItem: Item | null;
@@ -33,6 +34,7 @@ interface ItemsState {
 export const useItemsStore = create<ItemsState>((set, get) => ({
   items: [],
   selectedMinutes: 15,
+  hasManuallySelectedMinutes: false,
   activeItem: null,
   isLoading: true,
   undoItem: null,
@@ -46,7 +48,17 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
       if (items.length === 0) {
         items = await seedInitialItemsIfEmpty();
       }
-      const { selectedMinutes, activeItem } = get();
+
+      // Respect user's default_chip preference unless manually changed in this session
+      const settings = await settingsRepo.getSettings().catch(() => null);
+      const configuredChip = settings?.default_chip ?? 15;
+      const currentSelected = get().selectedMinutes;
+      const selectedMinutes = get().hasManuallySelectedMinutes ? currentSelected : configuredChip;
+      if (selectedMinutes !== currentSelected) {
+        set({ selectedMinutes });
+      }
+
+      const { activeItem } = get();
       
       // Auto purge expired let_go items upon load
       const expiredIds = getExpiredLetGoItemIds(items);
@@ -103,7 +115,7 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
       activeItem && activeItem.status === 'pending' && activeItem.minutes <= minutes;
 
     if (fitsCurrent) {
-      set({ selectedMinutes: minutes });
+      set({ selectedMinutes: minutes, hasManuallySelectedMinutes: true });
       return;
     }
 
@@ -123,7 +135,7 @@ export const useItemsStore = create<ItemsState>((set, get) => ({
       set({ currentSurfaceEventId: null });
     }
 
-    set({ selectedMinutes: minutes, activeItem: newActive });
+    set({ selectedMinutes: minutes, activeItem: newActive, hasManuallySelectedMinutes: true });
   },
 
   addItem: async (input: CreateItemInput) => {
