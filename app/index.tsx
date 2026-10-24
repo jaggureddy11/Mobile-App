@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Dimensions, TouchableOpacity, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import Animated, {
@@ -87,15 +87,24 @@ export default function SplashScreen() {
     return () => clearTimeout(timer);
   }, []);
 
+  const hasNavigated = useRef(false);
+
+  const navigateToDestination = () => {
+    if (hasNavigated.current) return;
+    hasNavigated.current = true;
+    if (settings?.onboarding_completed === false) {
+      router.replace('/onboarding');
+    } else {
+      router.replace('/(tabs)/today');
+    }
+  };
+
   const handleNavigate = () => {
-    // Smooth fade out then redirect
-    screenOpacity.value = withTiming(0, { duration: 350 }, () => {
-      if (settings?.onboarding_completed === false) {
-        router.replace('/onboarding');
-      } else {
-        router.replace('/(tabs)/today');
-      }
-    });
+    if (hasNavigated.current) return;
+    screenOpacity.value = withTiming(0, { duration: 300 });
+    setTimeout(() => {
+      navigateToDestination();
+    }, 300);
   };
 
   // Animated styles
