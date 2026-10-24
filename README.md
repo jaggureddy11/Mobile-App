@@ -14,6 +14,28 @@
 
 ---
 
+## URL Classification & Duration Rules
+
+Re:Mind uses an intelligent URL classification engine in `src/domain/classification.ts` when saving items (both in the manual Add screen and via native system Share Intents). As an **intentional change from the original defaults** (where all saved links previously defaulted to 5m):
+
+- **Reels & Short-Form Video**: **1 minute** (`type: reel`, `minutes: 1`)
+  - Instagram Reels, TikTok, YouTube Shorts, Snapchat Spotlight.
+- **Long-Form Video**: **15 minutes** (`type: link`, `minutes: 15`)
+  - YouTube videos (`youtube.com/watch`, `youtu.be`), Vimeo, Twitch, TED Talks.
+- **Podcasts & Audio**: **30 minutes** (`type: link`, `minutes: 30`)
+  - Spotify podcast episodes, Apple Podcasts, Pocket Casts, Overcast, SoundCloud.
+- **Deep Reads & Long Articles**: **15 minutes** (`type: link`, `minutes: 15`)
+  - Substack, The New York Times, The Atlantic, The New Yorker, The Economist, WSJ.
+- **Short Articles & General Web**: **5 minutes** (`type: link`, `minutes: 5`)
+  - Medium, Hacker News, Dev.to, Hashnode, Wikipedia, and unknown/unclassified links.
+- **Plain Text / Thoughts**: **1 minute** (`type: text`, `minutes: 1`)
+- **Tasks**: **15 minutes** (`type: task`, `minutes: 15`)
+- **Activities**: **30 minutes** (`type: activity`, `minutes: 30`)
+
+When metadata scraping is unavailable, times out, or fails, the real save path safely falls back to these rules.
+
+---
+
 ## Prerequisites
 
 - **Node.js**: `v20.x` or later (LTS recommended)
