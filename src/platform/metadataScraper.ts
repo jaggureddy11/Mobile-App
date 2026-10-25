@@ -1,5 +1,11 @@
 import { MinuteOption } from '../domain/types';
-import { cleanScrapedTitle, estimateReadTimeFromWordCount } from '../domain/classification';
+import {
+  cleanScrapedTitle,
+  cleanScrapedDescription,
+  decodeHtmlEntities,
+  extractHashtags,
+  estimateReadTimeFromWordCount,
+} from '../domain/classification';
 import { metadataCacheRepo } from '../db/metadataCacheRepo';
 
 export interface UrlMetadata {
@@ -8,21 +14,7 @@ export interface UrlMetadata {
   imageUrl?: string;
   siteName?: string;
   estimatedMinutes?: MinuteOption;
-}
-
-function decodeHtmlEntities(str: string): string {
-  return str
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&apos;/g, "'")
-    .replace(/&mdash;/g, '—')
-    .replace(/&ndash;/g, '–')
-    .replace(/&hellip;/g, '…')
-    .replace(/&nbsp;/g, ' ')
-    .trim();
+  suggestedTags?: string[];
 }
 
 export interface FetchMetadataOptions {
@@ -129,13 +121,16 @@ export async function fetchUrlMetadata(
     }
 
     const cleanedTitle = cleanScrapedTitle(title, trimmed);
+    const cleanedDescription = cleanScrapedDescription(description);
+    const suggestedTags = extractHashtags(`${title || ''} ${description || ''}`);
 
     const result: UrlMetadata = {
       title: cleanedTitle || title,
-      description,
+      description: cleanedDescription || description,
       imageUrl,
       siteName,
       estimatedMinutes,
+      suggestedTags: suggestedTags.length > 0 ? suggestedTags : undefined,
     };
 
     // Save to local storage cache if any meaningful metadata was found

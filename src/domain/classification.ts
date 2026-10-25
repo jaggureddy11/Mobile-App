@@ -132,18 +132,87 @@ export function detectItemClassification(url: string): ItemClassification {
 }
 
 /**
- * Cleans scraped titles by stripping noisy platform prefixes and suffixes.
+ * Fully decodes all HTML entities (named, decimal, and hexadecimal unicode code points).
+ * Converts emoji hex entities like &#x1F525; -> 🔥 and script entities like &#X939; -> ह.
+ */
+export function decodeHtmlEntities(str: string | undefined): string {
+  if (!str) return '';
+  return str
+    // 1. Hexadecimal numeric entities: &#x1F525; or &#X939;
+    .replace(/&#[xX]([0-9a-fA-F]+);/g, (_, hex) => {
+      try {
+        const code = parseInt(hex, 16);
+        if (!isNaN(code) && code > 0 && code <= 0x10ffff) {
+          return String.fromCodePoint(code);
+        }
+        return '';
+      } catch {
+        return '';
+      }
+    })
+    // 2. Decimal numeric entities: &#2361; or &#128293;
+    .replace(/&#([0-9]+);/g, (_, dec) => {
+      try {
+        const code = parseInt(dec, 10);
+        if (!isNaN(code) && code > 0 && code <= 0x10ffff) {
+          return String.fromCodePoint(code);
+        }
+        return '';
+      } catch {
+        return '';
+      }
+    })
+    // 3. Common named HTML entities
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&apos;/gi, "'")
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&mdash;/gi, '—')
+    .replace(/&ndash;/gi, '–')
+    .replace(/&hellip;/gi, '…')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&copy;/gi, '©')
+    .replace(/&reg;/gi, '®')
+    .replace(/&trade;/gi, '™')
+    .trim();
+}
+
+/**
+ * Cleans scraped titles by decoding entities and stripping noisy platform prefixes and suffixes.
  */
 export function cleanScrapedTitle(rawTitle: string | undefined, url?: string): string | undefined {
   if (!rawTitle) return undefined;
 
-  let title = rawTitle.trim();
+  let title = decodeHtmlEntities(rawTitle).trim();
   if (!title) return undefined;
 
-  // Instagram share title format: "Username (@handle) on Instagram: "Caption...""
-  const igMatch = title.match(/^[^\n:]+\s*\(@[^\)]+\)\s*on\s*Instagram:\s*["']?([^"'\n]+)/i);
-  if (igMatch && igMatch[1]) {
-    title = igMatch[1].trim();
+  // Instagram share title formats:
+  // "SNEHA ON INSTAGRAM: "#GodOfWar 🔥...""
+  // "Username (@handle) on Instagram: "Caption...""
+  // "Username on Instagram: "Caption...""
+  const igMatch = title.match(/^([^\n:]+?)(?:\s*\(@[^\)]+\))?\s*on\s*Instagram:\s*["']?([\s\S]+?)["']?$/i);
+  if (igMatch) {
+    const author = igMatch[1].trim();
+    const caption = igMatch[2].trim().replace(/^["']|["']$/g, '').trim();
+    if (caption && caption.length > 0) {
+      title = caption;
+    } else if (author) {
+      title = `Reel by ${author}`;
+    }
+  }
+
+  // TikTok formats: "Username on TikTok: Caption"
+  const ttMatch = title.match(/^[^\n:]+\s*on\s*TikTok:\s*["']?([\s\S]+?)["']?$/i);
+  if (ttMatch && ttMatch[1].trim()) {
+    title = ttMatch[1].trim().replace(/^["']|["']$/g, '').trim();
+  }
+
+  // Twitter/X formats: "Username on X: "Tweet""
+  const xMatch = title.match(/^[^\n:]+\s*on\s*(?:X|Twitter):\s*["']?([\s\S]+?)["']?$/i);
+  if (xMatch && xMatch[1].trim()) {
+    title = xMatch[1].trim().replace(/^["']|["']$/g, '').trim();
   }
 
   // Strip YouTube trailing suffix
@@ -160,5 +229,56 @@ export function cleanScrapedTitle(rawTitle: string | undefined, url?: string): s
   // Strip generic site suffixes like " - SiteName"
   title = title.replace(/\s*[\|-]\s*(The Verge|Wired|TechCrunch|Hacker News)$/i, '');
 
-  return title.trim() || rawTitle;
+  // Clean surrounding quotes if whole title is wrapped in quotes
+  if ((title.startsWith('"') && title.endsWith('"')) || (title.startsWith("'") && title.endsWith("'"))) {
+    title = title.slice(1, -1).trim();
+  }
+
+  return title.trim() || decodeHtmlEntities(rawTitle);
+}
+
+/**
+ * Cleans scraped descriptions by decoding entities and removing social media metric boilerplate.
+ * For Instagram: strips "223K likes, 1,407 comments - username on Date: "
+ */
+export function cleanScrapedDescription(rawDesc: string | undefined): string | undefined {
+  if (!rawDesc) return undefined;
+
+  let desc = decodeHtmlEntities(rawDesc).trim();
+  if (!desc) return undefined;
+
+  // Instagram description noise:
+  // "223K likes, 1,407 comments - sneh__verse27 on September 18, 2026: "Caption...""
+  // "on October 25, 2026: "#GodOfWar 🔥""
+  // "1,234 likes, 56 comments - username: "Caption""
+  desc = desc.replace(
+    /^(?:[\d,.]+[KMkm]?\s+likes,\s+[\d,.]+[KMkm]?\s+comments\s*-\s*)?(?:[^\n:]+\s+on\s+[A-Za-z]+\s+\d{1,2},\s+\d{4}:\s*|on\s+[A-Za-z]+\s+\d{1,2},\s+\d{4}:\s*)["']?/i,
+    ''
+  );
+
+  // Clean trailing quote left behind by stripped opening quote
+  if (desc.endsWith('"') || desc.endsWith("'")) {
+    if (!desc.startsWith('"') && !desc.startsWith("'")) {
+      desc = desc.slice(0, -1).trim();
+    }
+  }
+
+  // Clean surrounding quotes if whole description is wrapped in quotes
+  if ((desc.startsWith('"') && desc.endsWith('"')) || (desc.startsWith("'") && desc.endsWith("'"))) {
+    desc = desc.slice(1, -1).trim();
+  }
+
+  return desc || undefined;
+}
+
+/**
+ * Extracts hashtags from title or caption text to suggest clean, sensible tags.
+ * e.g. "#GodOfWar" -> "godofwar"
+ */
+export function extractHashtags(text: string | undefined): string[] {
+  if (!text) return [];
+  const decoded = decodeHtmlEntities(text);
+  const matches = decoded.match(/#([a-zA-Z0-9_\u0900-\u097F]+)/g);
+  if (!matches) return [];
+  return Array.from(new Set(matches.map((m) => m.slice(1).toLowerCase()))).slice(0, 6);
 }

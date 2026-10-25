@@ -28,7 +28,6 @@ import {
   Tag as TagIcon,
   Check,
   Globe,
-  Sparkles,
 } from 'lucide-react-native';
 import { colors, typography, spacing, radii, shadows } from '@/theme';
 import { useItemsStore } from '@/domain/useItemsStore';
@@ -142,9 +141,13 @@ export default function AddModal() {
           setMetadata(meta);
           // If title is still empty, automatically set it to the scraped title
           setTitle((prev) => (!prev.trim() && meta.title ? meta.title : prev));
-          // If description exists and note is empty, provide a subtle suggestion or fill
-          if (meta.description && !note.trim()) {
+          // If description exists and note is empty, provide a clean snippet only if distinct from title
+          if (meta.description && !note.trim() && meta.description !== meta.title) {
             setNote(meta.description.slice(0, 200));
+          }
+          // Auto-suggest tags from extracted hashtags if no tags added yet
+          if (meta.suggestedTags && meta.suggestedTags.length > 0) {
+            setTags((prev) => (prev.length === 0 ? meta.suggestedTags! : prev));
           }
           // If estimated read time is present from article word count, auto-update duration chip
           if (meta.estimatedMinutes) {
@@ -352,7 +355,6 @@ export default function AddModal() {
                 )}
                 <View style={styles.previewInfo}>
                   <View style={styles.previewBadgeRow}>
-                    <Sparkles size={12} color={colors.accent} />
                     <Text style={styles.previewSiteName}>
                       {metadata.siteName || 'Web Preview'}
                     </Text>

@@ -1,5 +1,12 @@
 import { detectItemTypeFromUrl } from '../useListenShareIntent';
-import { detectItemClassification, cleanScrapedTitle, estimateReadTimeFromWordCount } from '@/domain/classification';
+import {
+  detectItemClassification,
+  cleanScrapedTitle,
+  cleanScrapedDescription,
+  decodeHtmlEntities,
+  extractHashtags,
+  estimateReadTimeFromWordCount,
+} from '@/domain/classification';
 
 describe('detectItemTypeFromUrl URL Pattern Suite', () => {
   // Test Instagram URLs (15 tests)
@@ -152,6 +159,16 @@ describe('detectItemTypeFromUrl URL Pattern Suite', () => {
       expect(cleanScrapedTitle(raw)).toBe('Morning routine for deep focus');
     });
 
+    test('cleans Instagram titles with uppercase and hex entities', () => {
+      const raw = 'SNEHA ON INSTAGRAM: "&#X939;&#X928;&#X941;&#X92E;&#X902;&#X924; साक्षात"';
+      expect(cleanScrapedTitle(raw)).toBe('हनुमंत साक्षात');
+    });
+
+    test('cleans Instagram titles with emojis and hashtags', () => {
+      const raw = 'SCREENPLAY.IN ON INSTAGRAM: "#GODOFWAR &#X1F525;&#X1F64F;&#X1F6D0;"';
+      expect(cleanScrapedTitle(raw)).toBe('#GODOFWAR 🔥🙏🛐');
+    });
+
     test('cleans YouTube title suffix', () => {
       const raw = 'Never Gonna Give You Up - YouTube';
       expect(cleanScrapedTitle(raw)).toBe('Never Gonna Give You Up');
@@ -160,6 +177,39 @@ describe('detectItemTypeFromUrl URL Pattern Suite', () => {
     test('cleans Medium title suffix', () => {
       const raw = 'The Art of Mindful Software | by Jane | Medium';
       expect(cleanScrapedTitle(raw)).toBe('The Art of Mindful Software');
+    });
+  });
+
+  describe('HTML Entity Decoding', () => {
+    test('decodes hexadecimal Unicode entities (emojis and scripts)', () => {
+      expect(decodeHtmlEntities('&#x1F525; &amp; &#X939;&#X928;&#X941;&#X92E;&#X902;&#X924;')).toBe('🔥 & हनुमंत');
+    });
+
+    test('decodes decimal Unicode entities', () => {
+      expect(decodeHtmlEntities('&#2361;&#2344;&#2369;&#2350;&#2306;&#2340;')).toBe('हनुमंत');
+    });
+
+    test('decodes common named entities', () => {
+      expect(decodeHtmlEntities('&quot;Hello&quot; &amp; &lt;World&gt; &mdash; 2026')).toBe('"Hello" & <World> — 2026');
+    });
+  });
+
+  describe('Clean Scraped Descriptions', () => {
+    test('strips Instagram like counts, comment counts, author and date boilerplate', () => {
+      const raw = '223K likes, 1,407 comments - sneh__verse27 on September 18, 2026: "&#x939;&#x928;&#x941;&#x92E;&#x902;&#x924; साक्षात"';
+      expect(cleanScrapedDescription(raw)).toBe('हनुमंत साक्षात');
+    });
+
+    test('strips Instagram date prefix without likes count', () => {
+      const raw = 'on October 25, 2026: "#GodOfWar &#x1f525;&#x1f64f;&#x1f6d0;"';
+      expect(cleanScrapedDescription(raw)).toBe('#GodOfWar 🔥🙏🛐');
+    });
+  });
+
+  describe('Extract Hashtags', () => {
+    test('extracts clean hashtags as lowercase tag list', () => {
+      const text = '#GodOfWar &#x1f525; #Focus #Dev and some text #godofwar';
+      expect(extractHashtags(text)).toEqual(['godofwar', 'focus', 'dev']);
     });
   });
 });
