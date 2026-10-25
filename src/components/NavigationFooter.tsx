@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Sun, Bookmark, Plus } from 'lucide-react-native';
 import { colors, typography, spacing, radii, shadows } from '@/theme';
+import { hapticFeedback } from '@/utils/haptics';
 
 export type TabKey = 'today' | 'saved' | 'settings';
 
@@ -26,6 +27,16 @@ export const NavigationFooter: React.FC<NavigationFooterProps> = ({
   const dynamicPaddingBottom = Math.max(insetsBottom, Platform.OS === 'ios' ? 16 : 10);
   const dynamicHeight = 58 + dynamicPaddingBottom;
 
+  const handleTabPress = (tab: TabKey) => {
+    hapticFeedback.selection();
+    onTabPress(tab);
+  };
+
+  const handleAddPress = () => {
+    hapticFeedback.light();
+    onAddPress();
+  };
+
   return (
     <View style={styles.wrapper}>
       <View
@@ -37,7 +48,7 @@ export const NavigationFooter: React.FC<NavigationFooterProps> = ({
         {/* Left Side: Today Tab */}
         <TouchableOpacity
           style={styles.tabButton}
-          onPress={() => onTabPress('today')}
+          onPress={() => handleTabPress('today')}
           activeOpacity={0.7}
           accessibilityLabel="Today"
           accessibilityRole="tab"
@@ -61,7 +72,7 @@ export const NavigationFooter: React.FC<NavigationFooterProps> = ({
         <View style={styles.centerSlot}>
           <TouchableOpacity
             style={styles.fabButton}
-            onPress={onAddPress}
+            onPress={handleAddPress}
             activeOpacity={0.85}
             accessibilityLabel="Add new item"
             accessibilityRole="button"
@@ -73,7 +84,7 @@ export const NavigationFooter: React.FC<NavigationFooterProps> = ({
         {/* Right Side: Saved Tab */}
         <TouchableOpacity
           style={styles.tabButton}
-          onPress={() => onTabPress('saved')}
+          onPress={() => handleTabPress('saved')}
           activeOpacity={0.7}
           accessibilityLabel="Saved items"
           accessibilityRole="tab"

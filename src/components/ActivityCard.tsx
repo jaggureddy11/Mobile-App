@@ -1,8 +1,9 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, Image, Animated } from 'react-native';
 import { PlayCircle, Link2, FileText, CheckSquare, Compass, Globe } from 'lucide-react-native';
 import { colors, typography, spacing, radii, shadows } from '@/theme';
 import { ItemType } from './ListItem';
+import { hapticFeedback } from '@/utils/haptics';
 
 interface ActivityCardProps {
   type: ItemType;
@@ -31,6 +32,47 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
   onLetItGo,
   onShowAnother,
 }) => {
+  const fadeAnim = useRef(new Animated.Value(0.4)).current;
+  const slideAnim = useRef(new Animated.Value(8)).current;
+
+  useEffect(() => {
+    fadeAnim.setValue(0.4);
+    slideAnim.setValue(8);
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        tension: 80,
+        friction: 8,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [title]);
+
+  const handleDoIt = () => {
+    hapticFeedback.success();
+    onDoIt();
+  };
+
+  const handleLater = () => {
+    hapticFeedback.medium();
+    onLater();
+  };
+
+  const handleLetItGo = () => {
+    hapticFeedback.warning();
+    onLetItGo();
+  };
+
+  const handleShowAnother = () => {
+    hapticFeedback.light();
+    if (onShowAnother) onShowAnother();
+  };
+
   const renderTypeIcon = () => {
     switch (type) {
       case 'reel':
@@ -55,7 +97,15 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
   );
 
   return (
-    <View style={styles.card}>
+    <Animated.View
+      style={[
+        styles.card,
+        {
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }],
+        },
+      ]}
+    >
       {/* Rich Preview Image if available */}
       {imageUrl ? (
         <View style={styles.cardImageContainer}>
@@ -97,7 +147,7 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
         {/* Do it button */}
         <TouchableOpacity
           style={styles.doItButton}
-          onPress={onDoIt}
+          onPress={handleDoIt}
           activeOpacity={0.85}
           accessibilityLabel="Do it"
           accessibilityRole="button"
@@ -109,7 +159,7 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
         <View style={styles.secondaryActionsRow}>
           <TouchableOpacity
             style={styles.secondaryButton}
-            onPress={onLater}
+            onPress={handleLater}
             activeOpacity={0.8}
             accessibilityLabel="Later"
             accessibilityRole="button"
@@ -119,7 +169,7 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
 
           <TouchableOpacity
             style={styles.secondaryButton}
-            onPress={onLetItGo}
+            onPress={handleLetItGo}
             activeOpacity={0.8}
             accessibilityLabel="Let it go"
             accessibilityRole="button"
@@ -133,7 +183,7 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
       {onShowAnother ? (
         <TouchableOpacity
           style={styles.showAnotherButton}
-          onPress={onShowAnother}
+          onPress={handleShowAnother}
           activeOpacity={0.7}
           accessibilityLabel="Show something else"
           accessibilityRole="button"
@@ -141,7 +191,7 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
           <Text style={styles.showAnotherText}>Show something else</Text>
         </TouchableOpacity>
       ) : null}
-    </View>
+    </Animated.View>
   );
 };
 

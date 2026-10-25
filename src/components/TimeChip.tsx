@@ -1,6 +1,6 @@
-import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, StyleProp, ViewStyle } from 'react-native';
 import { colors, typography, spacing, radii } from '@/theme';
+import { hapticFeedback } from '@/utils/haptics';
 
 export type TimeChipValue = 5 | 15 | 30;
 
@@ -17,6 +17,11 @@ export const TimeChip: React.FC<TimeChipProps> = ({
   onSelect,
   style,
 }) => {
+  const handlePress = () => {
+    hapticFeedback.selection();
+    onSelect(minutes);
+  };
+
   return (
     <TouchableOpacity
       style={[
@@ -24,7 +29,7 @@ export const TimeChip: React.FC<TimeChipProps> = ({
         isSelected ? styles.chipActive : styles.chipInactive,
         style,
       ]}
-      onPress={() => onSelect(minutes)}
+      onPress={handlePress}
       activeOpacity={0.8}
       accessibilityRole="button"
       accessibilityState={{ selected: isSelected }}

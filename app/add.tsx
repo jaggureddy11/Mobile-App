@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   TouchableOpacity,
   TextInput,
   KeyboardAvoidingView,
@@ -13,7 +12,9 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { hapticFeedback } from '@/utils/haptics';
 import {
   X,
   Link2,
@@ -86,12 +87,41 @@ export default function AddModal() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const params = typeof useLocalSearchParams === 'function' ? useLocalSearchParams<{
+    url?: string;
+    title?: string;
+    text?: string;
+    note?: string;
+    minutes?: string;
+  }>() : {};
+
   useEffect(() => {
     loadCollections();
     return () => {
       if (scrapeTimeoutRef.current) clearTimeout(scrapeTimeoutRef.current);
     };
   }, []);
+
+  // Deep Link prefill (remind://add?url=...&title=...&note=...)
+  useEffect(() => {
+    if (params) {
+      if (params.url) {
+        handleUrlChange(params.url);
+      }
+      if (params.title) {
+        setTitle(params.title);
+      }
+      if (params.text || params.note) {
+        setNote(params.text || params.note || '');
+      }
+      if (params.minutes) {
+        const m = parseInt(params.minutes, 10);
+        if (m === 1 || m === 5 || m === 15 || m === 30) {
+          setSelectedMinutes(m as MinuteOption);
+        }
+      }
+    }
+  }, [params?.url, params?.title, params?.text, params?.note, params?.minutes]);
 
   const triggerMetadataScrape = (targetUrl: string) => {
     const trimmed = targetUrl.trim();
@@ -143,6 +173,7 @@ export default function AddModal() {
   };
 
   const handleTypeSelect = (type: ItemType) => {
+    hapticFeedback.selection();
     setSelectedType(type);
     setSelectedMinutes(DEFAULT_ITEM_MINUTES[type]);
   };
@@ -208,6 +239,7 @@ export default function AddModal() {
         image_url: metadata?.imageUrl || null,
         site_name: metadata?.siteName || null,
       });
+      hapticFeedback.success();
       router.back();
     } catch (err) {
       console.error('Failed to add item:', err);
