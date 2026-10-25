@@ -7,11 +7,6 @@
     "icon": "./assets/images/icon.png",
     "scheme": "remind",
     "userInterfaceStyle": "automatic",
-    "splash": {
-      "image": "./assets/images/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#FBF9F6"
-    },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.jaggureddy.remind",
