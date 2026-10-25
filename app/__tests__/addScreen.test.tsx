@@ -342,7 +342,7 @@ describe('AddModal (Screen & Flow Integration)', () => {
     expect(mockBack).not.toHaveBeenCalled();
   });
 
-  it('allows adding quick suggested tags and saving them with item', async () => {
+  it('allows adding custom tags and verifies suggested tags are removed', async () => {
     screen = await render(<AddModal />);
 
     const titleInput = screen.getByPlaceholderText('e.g. Read article on creative focus');
@@ -350,9 +350,17 @@ describe('AddModal (Screen & Flow Integration)', () => {
       fireEvent.changeText(titleInput, 'Design system thinking');
     });
 
-    const focusTagBtn = screen.getByText('+focus');
+    // Suggested tags should no longer be present
+    expect(screen.queryByText('+focus')).toBeNull();
+
+    const tagInput = screen.getByPlaceholderText('Add tag (e.g. reading, focus)...');
     await act(async () => {
-      fireEvent.press(focusTagBtn);
+      fireEvent.changeText(tagInput, 'focus');
+    });
+
+    const addTagBtn = screen.getByText('Add');
+    await act(async () => {
+      fireEvent.press(addTagBtn);
     });
 
     expect(screen.getByText('#focus')).toBeTruthy();

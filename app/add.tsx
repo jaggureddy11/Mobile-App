@@ -11,6 +11,7 @@ import {
   Image,
   ActivityIndicator,
   Alert,
+  Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -58,8 +59,6 @@ const REMINDER_OPTIONS: { value: RemindInterval; label: string }[] = [
   { value: '1_month', label: '1 Month' },
 ];
 
-const SUGGESTED_TAGS = ['focus', 'reading', 'design', 'learn', 'weekend', 'calm'];
-
 export default function AddModal() {
   const router = useRouter();
   const addItem = useItemsStore((state) => state.addItem);
@@ -79,6 +78,23 @@ export default function AddModal() {
   const [isScraping, setIsScraping] = useState(false);
   const [metadata, setMetadata] = useState<UrlMetadata | null>(null);
   const scrapeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scrollViewRef = useRef<React.ElementRef<typeof ScrollView>>(null);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => setIsKeyboardVisible(true)
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setIsKeyboardVisible(false)
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   // Inline collection creation state
   const [isCreatingCollection, setIsCreatingCollection] = useState(false);
@@ -272,9 +288,15 @@ export default function AddModal() {
         </View>
 
         <ScrollView
+          ref={scrollViewRef}
           style={styles.scrollContainer}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingBottom: isKeyboardVisible ? 240 : 40 },
+          ]}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          automaticallyAdjustKeyboardInsets={Platform.OS === 'ios'}
           showsVerticalScrollIndicator={false}
         >
           {/* Type Selector Pills */}
@@ -316,6 +338,11 @@ export default function AddModal() {
               placeholderTextColor="rgba(138, 126, 114, 0.4)"
               value={title}
               onChangeText={setTitle}
+              onFocus={() => {
+                setTimeout(() => {
+                  scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+                }, 100);
+              }}
               autoFocus
               returnKeyType="next"
             />
@@ -338,6 +365,11 @@ export default function AddModal() {
               placeholderTextColor="rgba(138, 126, 114, 0.4)"
               value={url}
               onChangeText={handleUrlChange}
+              onFocus={() => {
+                setTimeout(() => {
+                  scrollViewRef.current?.scrollTo({ y: 70, animated: true });
+                }, 100);
+              }}
               autoCapitalize="none"
               keyboardType="url"
               returnKeyType="next"
@@ -561,6 +593,11 @@ export default function AddModal() {
                 placeholderTextColor="rgba(138, 126, 114, 0.4)"
                 value={tagInput}
                 onChangeText={setTagInput}
+                onFocus={() => {
+                  setTimeout(() => {
+                    scrollViewRef.current?.scrollTo({ y: 260, animated: true });
+                  }, 100);
+                }}
                 returnKeyType="done"
                 onSubmitEditing={() => handleAddTag()}
               />
@@ -573,20 +610,6 @@ export default function AddModal() {
                 <Text style={styles.addTagButtonText}>Add</Text>
               </TouchableOpacity>
             </View>
-
-            {/* Quick Tag Suggestions */}
-            <View style={styles.quickTagsContainer}>
-              {SUGGESTED_TAGS.filter((s) => !tags.includes(s)).map((suggestion) => (
-                <TouchableOpacity
-                  key={suggestion}
-                  style={styles.quickTagPill}
-                  onPress={() => handleAddTag(suggestion)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.quickTagText}>+{suggestion}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
           </View>
 
           {/* Note Input */}
@@ -598,6 +621,11 @@ export default function AddModal() {
               placeholderTextColor="rgba(138, 126, 114, 0.4)"
               value={note}
               onChangeText={setNote}
+              onFocus={() => {
+                setTimeout(() => {
+                  scrollViewRef.current?.scrollToEnd({ animated: true });
+                }, 120);
+              }}
               multiline
               numberOfLines={3}
             />
@@ -661,37 +689,40 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: spacing.xxl,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
   },
   fieldLabel: {
     ...typography.presets.tag,
     color: colors.accent,
-    marginBottom: spacing.sm,
-    letterSpacing: 1.2,
+    marginBottom: 6,
+    letterSpacing: 1.1,
+    fontSize: 10,
   },
   labelWithIcon: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginBottom: spacing.sm,
+    gap: 5,
+    marginBottom: 6,
   },
   fieldLabelInline: {
     ...typography.presets.tag,
     color: colors.accent,
-    letterSpacing: 1.2,
+    letterSpacing: 1.1,
+    fontSize: 10,
   },
   typeSelector: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.sm,
-    marginBottom: spacing.xxl,
+    gap: spacing.xs + 2,
+    marginBottom: spacing.md,
   },
   typePill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    gap: 5,
+    paddingHorizontal: 11,
+    paddingVertical: 7,
     borderRadius: radii.pill,
     backgroundColor: colors.card,
     borderWidth: 1,
@@ -703,6 +734,7 @@ const styles = StyleSheet.create({
   },
   typePillText: {
     ...typography.presets.caption,
+    fontSize: 12,
     fontWeight: '600',
     color: colors.textSecondary,
   },
@@ -710,13 +742,13 @@ const styles = StyleSheet.create({
     color: colors.background,
   },
   inputGroup: {
-    marginBottom: spacing.xxl,
+    marginBottom: spacing.md + 2,
   },
   urlLabelRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: spacing.sm,
+    marginBottom: 6,
   },
   scrapingIndicator: {
     flexDirection: 'row',
@@ -733,23 +765,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(238, 230, 219, 0.6)',
-    borderRadius: radii.lg,
+    borderRadius: radii.md,
     padding: spacing.md,
     marginTop: spacing.sm,
     borderWidth: 1,
     borderColor: 'rgba(212, 196, 176, 0.4)',
-    gap: spacing.md,
+    gap: spacing.sm,
   },
   previewImage: {
-    width: 52,
-    height: 52,
-    borderRadius: radii.md,
+    width: 48,
+    height: 48,
+    borderRadius: radii.sm,
     backgroundColor: 'rgba(212, 196, 176, 0.2)',
   },
   previewFallbackIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: radii.md,
+    width: 48,
+    height: 48,
+    borderRadius: radii.sm,
     backgroundColor: 'rgba(212, 196, 176, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -773,30 +805,32 @@ const styles = StyleSheet.create({
     ...typography.presets.caption,
     fontWeight: '600',
     color: colors.textPrimary,
+    fontSize: 12,
   },
   input: {
-    height: 54,
+    height: 48,
     backgroundColor: colors.card,
-    borderRadius: radii.xl,
-    paddingHorizontal: spacing.lg,
-    borderWidth: 1.5,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    borderWidth: 1,
     borderColor: 'rgba(212, 196, 176, 0.4)',
     color: colors.textPrimary,
     ...typography.presets.body,
+    fontSize: 14,
   },
   textArea: {
-    height: 90,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.md,
+    height: 80,
+    paddingTop: spacing.sm + 2,
+    paddingBottom: spacing.sm + 2,
     textAlignVertical: 'top',
   },
   durationRow: {
     flexDirection: 'row',
-    gap: spacing.md,
+    gap: spacing.sm,
   },
   durationPill: {
     flex: 1,
-    height: 44,
+    height: 38,
     borderRadius: radii.pill,
     backgroundColor: colors.card,
     alignItems: 'center',
@@ -811,6 +845,7 @@ const styles = StyleSheet.create({
   },
   durationPillText: {
     ...typography.presets.caption,
+    fontSize: 12,
     fontWeight: '600',
     color: colors.textSecondary,
   },
@@ -823,8 +858,8 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   collectionPill: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm + 2,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
     borderRadius: radii.pill,
     backgroundColor: colors.card,
     borderWidth: 1,
@@ -836,6 +871,7 @@ const styles = StyleSheet.create({
   },
   collectionPillText: {
     ...typography.presets.caption,
+    fontSize: 12,
     fontWeight: '600',
     color: colors.textSecondary,
   },
@@ -846,8 +882,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 2,
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: 6,
     borderRadius: radii.pill,
     borderWidth: 1,
     borderColor: colors.accent,
@@ -856,6 +892,7 @@ const styles = StyleSheet.create({
   },
   newCollectionPillText: {
     ...typography.presets.caption,
+    fontSize: 12,
     color: colors.accent,
     fontWeight: '600',
   },
@@ -867,27 +904,27 @@ const styles = StyleSheet.create({
   },
   inlineInput: {
     flex: 1,
-    height: 44,
+    height: 40,
     backgroundColor: colors.card,
     borderRadius: radii.pill,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.md,
     borderWidth: 1,
     borderColor: colors.accent,
     color: colors.textPrimary,
     ...typography.presets.caption,
   },
   inlineCreateBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: colors.textPrimary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   inlineCancelBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
@@ -932,7 +969,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     paddingHorizontal: spacing.md,
-    paddingVertical: 6,
+    paddingVertical: 5,
     borderRadius: radii.pill,
     backgroundColor: 'rgba(212, 196, 176, 0.35)',
     borderWidth: 1,
@@ -940,6 +977,7 @@ const styles = StyleSheet.create({
   },
   activeTagText: {
     ...typography.presets.caption,
+    fontSize: 12,
     fontWeight: '600',
     color: colors.textPrimary,
   },
@@ -949,10 +987,10 @@ const styles = StyleSheet.create({
   },
   tagInput: {
     flex: 1,
-    height: 46,
+    height: 42,
     backgroundColor: colors.card,
     borderRadius: radii.pill,
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: spacing.md,
     borderWidth: 1,
     borderColor: 'rgba(212, 196, 176, 0.4)',
     color: colors.textPrimary,
@@ -962,8 +1000,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: spacing.lg,
-    height: 46,
+    paddingHorizontal: spacing.md,
+    height: 42,
     borderRadius: radii.pill,
     backgroundColor: colors.card,
     borderWidth: 1,
@@ -974,33 +1012,17 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.textPrimary,
   },
-  quickTagsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.xs,
-    marginTop: spacing.sm,
-  },
-  quickTagPill: {
-    paddingHorizontal: spacing.sm + 2,
-    paddingVertical: 4,
-    borderRadius: radii.pill,
-    backgroundColor: 'rgba(212, 196, 176, 0.15)',
-  },
-  quickTagText: {
-    ...typography.presets.caption,
-    fontSize: 11,
-    color: colors.accent,
-  },
   // Footer
   footer: {
-    padding: spacing.xxl,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm + 2,
     borderTopWidth: 1,
     borderTopColor: 'rgba(212, 196, 176, 0.2)',
     backgroundColor: colors.background,
   },
   submitButton: {
-    height: 56,
-    borderRadius: radii.xl,
+    height: 48,
+    borderRadius: radii.lg,
     backgroundColor: colors.textPrimary,
     alignItems: 'center',
     justifyContent: 'center',
