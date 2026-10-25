@@ -6,6 +6,7 @@ import {
   scheduleNudgeNotification,
   sendTestNotification,
   NUDGE_CHANNEL_ID,
+  NOTIFICATION_SOUND,
 } from '../notifications';
 import { DEFAULT_SETTINGS, UserSettings } from '../../domain/types';
 
@@ -45,7 +46,7 @@ describe('Notifications Service', () => {
           name: 'Gentle Reminders',
           importance: Notifications.AndroidImportance.HIGH,
           lightColor: '#D4C4B0',
-          sound: 'default',
+          sound: NOTIFICATION_SOUND,
         })
       );
 
@@ -147,7 +148,7 @@ describe('Notifications Service', () => {
           title: 'Re:Mind',
           body: expect.any(String),
           data: { screen: 'today' },
-          sound: true,
+          sound: NOTIFICATION_SOUND,
         }),
         trigger: {
           type: Notifications.SchedulableTriggerInputTypes.DAILY,
@@ -177,7 +178,7 @@ describe('Notifications Service', () => {
           title: 'Re:Mind',
           body: expect.any(String),
           data: { screen: 'today' },
-          sound: true,
+          sound: NOTIFICATION_SOUND,
         }),
         trigger: {
           type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
@@ -204,7 +205,7 @@ describe('Notifications Service', () => {
           title: 'Re:Mind Sanctuary',
           body: expect.stringContaining('Gentle notification test'),
           data: { screen: 'today' },
-          sound: true,
+          sound: NOTIFICATION_SOUND,
         }),
         trigger: {
           type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,

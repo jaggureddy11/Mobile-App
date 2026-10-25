@@ -34,7 +34,16 @@
     "plugins": [
       "expo-router",
       "expo-sqlite",
-      "expo-notifications",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/splash-icon.png",
+          "color": "#D4C4B0",
+          "sounds": [
+            "./assets/sounds/nudge.wav"
+          ]
+        }
+      ],
       [
         "expo-share-intent",
         {

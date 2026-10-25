@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 import { UserSettings } from '../domain/types';
 
 export const NUDGE_CHANNEL_ID = 'gentle-nudges';
+export const NOTIFICATION_SOUND = 'nudge.wav';
 
 // Configure notification presentation behavior
 try {
@@ -35,7 +36,7 @@ export async function setupNotificationChannels(): Promise<void> {
           importance: Notifications.AndroidImportance.HIGH,
           vibrationPattern: [0, 250, 250, 250],
           lightColor: '#D4C4B0',
-          sound: 'default',
+          sound: NOTIFICATION_SOUND,
         });
       }
     } catch (e) {
@@ -112,7 +113,7 @@ export async function scheduleNudgeNotification(settings: UserSettings): Promise
           title: 'Re:Mind',
           body: 'Have a minute to take a breather? An item is waiting for you.',
           data: { screen: 'today' },
-          sound: true,
+          sound: NOTIFICATION_SOUND,
         },
         trigger: {
           type: Notifications.SchedulableTriggerInputTypes.DAILY,
@@ -128,7 +129,7 @@ export async function scheduleNudgeNotification(settings: UserSettings): Promise
           title: 'Re:Mind',
           body: 'Your calm weekly review: one gentle item to enjoy.',
           data: { screen: 'today' },
-          sound: true,
+          sound: NOTIFICATION_SOUND,
         },
         trigger: {
           type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
@@ -161,7 +162,7 @@ export async function sendTestNotification(): Promise<boolean> {
         title: 'Re:Mind Sanctuary',
         body: 'Gentle notification test: Your quiet sanctuary is ready.',
         data: { screen: 'today' },
-        sound: true,
+        sound: NOTIFICATION_SOUND,
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
