@@ -1,6 +1,8 @@
 {
   "name": "remind",
   "version": "1.0.0",
+  "license": "MIT",
+  "author": "Jaggu Reddy",
   "main": "expo-router/entry",
   "dependencies": {
     "@expo/ui": "~58.0.23",

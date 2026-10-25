@@ -167,3 +167,10 @@ npx eas-cli build --profile production --platform all
 ## Privacy & Security
 
 For complete details on our data protection and privacy guarantees, refer to [docs/PRIVACY.md](docs/PRIVACY.md).
+
+---
+
+## License
+
+This project is open source and available under the [MIT License](LICENSE).
+
