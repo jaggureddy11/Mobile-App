@@ -2,7 +2,7 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { UserSettings } from '../domain/types';
 
-export const NUDGE_CHANNEL_ID = 'gentle-nudges';
+export const NUDGE_CHANNEL_ID = 'remind-nudges-chime-v1';
 export const NOTIFICATION_SOUND = 'nudge.wav';
 
 // Configure notification presentation behavior
