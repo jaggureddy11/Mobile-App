@@ -59,7 +59,7 @@ npx eas build --profile production --platform all
 Before submitting to Apple App Store or Google Play:
 1. **Automated Suite**: Run `npm test` (all test suites must pass).
 2. **Typecheck**: Run `npx tsc --noEmit` (clean exit, 0 errors).
-3. **Hardware Matrix**: Complete every row in [TESTING.md](file:///Users/apple/Desktop/PROJECTS/Later%20app/TESTING.md) on physical iOS and Android hardware.
+3. **Hardware Matrix**: Complete every row in [TESTING.md](TESTING.md) on physical iOS and Android hardware.
 4. **App Store Connect**: Ensure App Group `group.com.jaggureddy.remind` is provisioned in the Apple Developer portal for the Share Extension.
 
 ---

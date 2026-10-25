@@ -2,6 +2,13 @@
 
 > A calm, intentional "save for later" mobile application for iOS and Android. Offline-first, zero-telemetry, and designed to gently resurface saved articles, reels, thoughts, and tasks during your free downtime.
 
+<p align="center">
+  <img src="docs/showcase/01-revisit-with-intention.jpg" width="23%" alt="Revisit with Intention" />
+  <img src="docs/showcase/02-save-from-any-app.jpg" width="23%" alt="Save from Any App" />
+  <img src="docs/showcase/03-organize-by-time-mood.jpg" width="23%" alt="Organize by Time & Mood" />
+  <img src="docs/showcase/04-private-offline-first.jpg" width="23%" alt="Private & Offline First" />
+</p>
+
 ---
 
 ## Key Principles & Architecture
@@ -156,21 +163,35 @@ npx eas-cli build --profile production --platform all
 │   ├── platform/         # Native integrations (share intents, notifications, metadata)
 │   ├── theme/            # Design tokens (colors, typography, spacing, radii)
 │   └── utils/            # Debug logger, performance tracker
-├── docs/                 # Product requirements, testing, and privacy documentation
-├── assets/               # Brand assets, logos, and app icons
+├── docs/                 # Documentation, specifications, and showcase media
+│   ├── ARCHITECTURE.md   # System architecture and design decision resolutions
+│   ├── AUDIT.md          # Security & architecture audit history
+│   ├── BENCHMARKS.md     # 5,000 item SQLite performance benchmarks
+│   ├── PRIVACY.md        # Zero-telemetry & local-first privacy specifications
+│   ├── RELEASE.md        # Release checklist & App Store / Play Store sheets
+│   ├── TESTING.md        # Test suite catalog & physical hardware verification matrix
+│   └── showcase/         # App store & release preview screenshots
+├── scripts/              # Developer & benchmark automation scripts
+├── assets/               # Production runtime icons, images, and notification sounds
 ├── app.json              # Expo application configuration & plugins
 └── eas.json              # EAS Build profiles
 ```
 
 ---
 
-## Privacy & Security
+## Documentation
 
-For complete details on our data protection and privacy guarantees, refer to [docs/PRIVACY.md](docs/PRIVACY.md).
+- [**System Architecture & Decisions**](docs/ARCHITECTURE.md): Design tokens, precedence rules, and domain resolutions.
+- [**Privacy & Security Guarantees**](docs/PRIVACY.md): Zero-telemetry, local SQLite encryption, and data ownership.
+- [**Hardware Testing Matrix**](docs/TESTING.md): Test suite catalog (430+ automated tests) and physical device checklist.
+- [**Release & Store Submission Guide**](docs/RELEASE.md): App Store Connect and Google Play pre-submission answer sheets.
+- [**Performance Benchmarks**](docs/BENCHMARKS.md): Cold start, search, and resurfacing latency with 5,000 SQLite items.
+- [**Architecture Audit**](docs/AUDIT.md): Comprehensive 12-point architecture, security, and schema review.
 
 ---
 
 ## License
 
 This project is open source and available under the [MIT License](LICENSE).
+
 
