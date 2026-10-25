@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1080, height=1920, initial-scale=1.0">
+  <title>Showcase Screen Full Render</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #FBF9F6;
+      --bg-secondary: #F5F0E8;
+      --card: #FFFFFF;
+      --text-primary: #2D2D2D;
+      --text-secondary: #8A7E72;
+      --text-tertiary: #D4C4B0;
+      --accent: #D4C4B0;
+      --sage: #7C8B68;
+      --border: rgba(212, 196, 176, 0.35);
+      --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-serif: 'Playfair Display', Georgia, serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      width: 1080px;
+      height: 1920px;
+      overflow: hidden;
+      font-family: var(--font-sans);
+      background: radial-gradient(circle at 50% 25%, #FFFFFF 0%, #FBF9F6 45%, #F0E6D8 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-top: 110px;
+      position: relative;
+    }
+
+    /* Ambient Warm Glow */
+    .ambient-glow {
+      position: absolute;
+      width: 900px;
+      height: 900px;
+      top: 550px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: radial-gradient(circle, rgba(212, 196, 176, 0.4) 0%, rgba(212, 196, 176, 0) 70%);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* Poster Header Copy */
+    .poster-header {
+      text-align: center;
+      z-index: 10;
+      margin-bottom: 50px;
+      padding: 0 80px;
+    }
+
+    .poster-badge {
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--sage);
+      background: rgba(124, 139, 104, 0.14);
+      padding: 10px 24px;
+      border-radius: 999px;
+      display: inline-block;
+      margin-bottom: 22px;
+    }
+
+    .poster-headline {
+      font-family: var(--font-serif);
+      font-size: 64px;
+      line-height: 1.15;
+      font-weight: 700;
+      color: var(--text-primary);
+      letter-spacing: -1px;
+      margin-bottom: 16px;
+    }
+
+    .poster-subtitle {
+      font-size: 24px;
+      line-height: 1.5;
+      font-weight: 500;
+      color: var(--text-secondary);
+      max-width: 840px;
+      margin: 0 auto;
+    }
+
+    /* Device Mockup */
+    .mockup-wrapper {
+      position: relative;
+      z-index: 10;
+      width: 660px;
+      height: 1380px;
+      border-radius: 86px;
+      background: #0E0E0E;
+      padding: 16px;
+      box-shadow: 
+        0 0 0 3px #3D3935,
+        0 0 0 8px #DCD3C6,
+        0 45px 120px -15px rgba(45, 45, 45, 0.38);
+    }
+
+    .screen {
+      width: 100%;
+      height: 100%;
+      background: var(--bg);
+      border-radius: 70px;
+      overflow: hidden;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Dynamic Island */
+    .island {
+      position: absolute;
+      top: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 170px;
+      height: 44px;
+      background: #000000;
+      border-radius: 26px;
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding-right: 14px;
+    }
+    .island::after {
+      content: '';
+      width: 14px;
+      height: 14px;
+      background: #14142B;
+      border-radius: 50%;
+    }
+
+    /* Status Bar */
+    .status-bar {
+      height: 64px;
+      padding: 20px 44px 0 44px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 19px;
+      font-weight: 700;
+      color: var(--text-primary);
+      z-index: 40;
+    }
+
+    .screen-content {
+      flex: 1;
+      padding: 20px 30px 10px 30px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Components inside screen */
+    .app-meta {
+      font-size: 14px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-secondary);
+      margin-bottom: 2px;
+    }
+
+    .app-brand-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 18px;
+    }
+
+    .app-brand {
+      font-size: 32px;
+      font-weight: 800;
+      color: var(--text-primary);
+      letter-spacing: -0.5px;
+    }
+
+    .badge-counter {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      font-size: 13px;
+      font-weight: 700;
+      padding: 6px 14px;
+      border-radius: 999px;
+    }
+
+    /* Chips */
+    .chips-bar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .chip-item {
+      padding: 8px 18px;
+      border-radius: 999px;
+      font-size: 15px;
+      font-weight: 700;
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+    }
+    .chip-item.active {
+      background: var(--text-primary);
+      color: #FFFFFF;
+      border-color: var(--text-primary);
+    }
+
+    /* Main Activity Card */
+    .card {
+      background: #FFFFFF;
+      border-radius: 26px;
+      border: 1px solid var(--border);
+      padding: 24px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .type-pill {
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      color: var(--sage);
+      background: rgba(124, 139, 104, 0.15);
+      padding: 4px 10px;
+      border-radius: 6px;
+      text-transform: uppercase;
+    }
+    .time-pill {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .card-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--text-primary);
+      line-height: 1.25;
+    }
+
+    .quote-box {
+      background: var(--bg-secondary);
+      border-left: 4px solid var(--accent);
+      padding: 12px 16px;
+      border-radius: 0 10px 10px 0;
+      font-size: 15px;
+      font-style: italic;
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+
+    .tags-row {
+      display: flex;
+      gap: 8px;
+    }
+    .tag {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-secondary);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      padding: 4px 12px;
+      border-radius: 999px;
+    }
+
+    .btn-main {
+      background: var(--text-primary);
+      color: #FFFFFF;
+      border-radius: 14px;
+      padding: 14px;
+      font-size: 16px;
+      font-weight: 700;
+      text-align: center;
+      border: none;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 10px;
+    }
+    .btn-sec {
+      flex: 1;
+      background: #FFFFFF;
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      border-radius: 12px;
+      padding: 11px;
+      font-size: 14px;
+      font-weight: 600;
+      text-align: center;
+    }
+
+    /* Mini Secondary Up Next Card */
+    .mini-card {
+      background: rgba(255, 255, 255, 0.7);
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      padding: 18px 22px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .mini-card-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 2px;
+    }
+    .mini-card-sub {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    /* Screen 2 Share overlay */
+    .share-container {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .dummy-feed {
+      background: rgba(224, 215, 203, 0.5);
+      border-radius: 20px;
+      padding: 18px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      opacity: 0.6;
+    }
+    .dummy-avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: #C4B7A6;
+    }
+    .share-modal {
+      background: #FFFFFF;
+      border-radius: 28px;
+      border: 1px solid var(--border);
+      padding: 24px;
+      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.08);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .share-thumb {
+      width: 100%;
+      height: 180px;
+      background: linear-gradient(135deg, #E6DDD1 0%, #D8CDBC 100%);
+      border-radius: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 48px;
+      position: relative;
+      overflow: hidden;
+    }
+    .share-thumb::after {
+      content: 'INSTANT URL SCRAPED';
+      position: absolute;
+      bottom: 12px;
+      right: 12px;
+      background: rgba(45, 45, 45, 0.75);
+      color: #FFFFFF;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 4px 10px;
+      border-radius: 6px;
+      letter-spacing: 0.5px;
+    }
+
+    /* Screen 3 Library Items */
+    .search-input-box {
+      background: #FFFFFF;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--text-secondary);
+      font-size: 15px;
+      margin-bottom: 16px;
+    }
+    .lib-item {
+      background: #FFFFFF;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .lib-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 3px;
+    }
+    .lib-sub {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+    .lib-pill {
+      font-size: 13px;
+      font-weight: 700;
+      background: var(--bg-secondary);
+      padding: 5px 12px;
+      border-radius: 8px;
+      color: var(--text-primary);
+    }
+
+    /* Screen 4 Privacy */
+    .shield-box {
+      background: #FFFFFF;
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      padding: 22px;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+    .shield-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 16px;
+      background: rgba(124, 139, 104, 0.16);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+    }
+
+    .settings-group-title {
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      margin: 14px 0 10px 4px;
+    }
+
+    /* Tab Bar */
+    .tab-bar {
+      height: 82px;
+      background: rgba(255, 255, 255, 0.95);
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      padding-bottom: 14px;
+    }
+    .t-icon {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-secondary);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    .t-icon.active {
+      color: var(--text-primary);
+    }
+
+    .indicator {
+      width: 170px;
+      height: 5px;
+      background: #000000;
+      border-radius: 3px;
+      position: absolute;
+      bottom: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="ambient-glow"></div>
+
+  <div class="poster-header">
+    <div id="pBadge" class="poster-badge">✦ DAILY SANCTUARY</div>
+    <h1 id="pHeadline" class="poster-headline">Revisit with Intention</h1>
+    <p id="pSubtitle" class="poster-subtitle">Gentle daily resurfacing that respects your focus and mental peace</p>
+  </div>
+
+  <div class="mockup-wrapper">
+    <div class="screen">
+      <div class="island"></div>
+      <div class="status-bar">
+        <span>9:41</span>
+        <span>􀋒 􀙇 􀛨</span>
+      </div>
+
+      <div id="sContent" class="screen-content">
+        <!-- Injected via JavaScript -->
+      </div>
+
+      <div id="sTabBar" class="tab-bar">
+        <!-- Injected via JavaScript -->
+      </div>
+
+      <div class="indicator"></div>
+    </div>
+  </div>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const screenId = parseInt(urlParams.get('screen') || '1', 10);
+
+    const screens = {
+      1: {
+        badge: "✦ DAILY SANCTUARY",
+        headline: "Revisit with Intention",
+        subtitle: "Gentle daily resurfacing that respects your focus and mental peace",
+        activeTab: 1,
+        render: () => `
+          <div class="app-meta">TODAY'S RESURFACING</div>
+          <div class="app-brand-row">
+            <div class="app-brand">Re:Mind</div>
+            <div class="badge-counter">3 of 3 ready</div>
+          </div>
+
+          <div class="chips-bar">
+            <div class="chip-item active">⚡ 5m quick</div>
+            <div class="chip-item">⏳ 15m</div>
+            <div class="chip-item">📚 Deep dive</div>
+          </div>
+
+          <div class="card">
+            <div class="card-top">
+              <span class="type-pill">ARTICLE</span>
+              <span class="time-pill">5 min read</span>
+            </div>
+            <div class="card-title">The Architecture of Solitude</div>
+            <div class="quote-box">“You wanted to read this when you had a quiet morning.”</div>
+            <div class="tags-row">
+              <span class="tag">#reading</span>
+              <span class="tag">#mindfulness</span>
+              <span class="tag">#focus</span>
+            </div>
+            <div class="btn-main">Do it now</div>
+            <div class="btn-row">
+              <div class="btn-sec">Later</div>
+              <div class="btn-sec">Let it go</div>
+            </div>
+          </div>
+
+          <div class="app-meta" style="margin: 8px 0 6px 2px;">UP NEXT IN TODAY'S 3</div>
+          <div class="mini-card">
+            <div>
+              <div class="mini-card-title">Why We Need Analog Hobbies</div>
+              <div class="mini-card-sub">Substack · 8 min read</div>
+            </div>
+            <span class="type-pill">ESSAY</span>
+          </div>
+        `
+      },
+      2: {
+        badge: "⚡ 1-TAP CAPTURE",
+        headline: "Save from Any App",
+        subtitle: "Share reels, articles & videos instantly with clean auto-tagging",
+        activeTab: 1,
+        render: () => `
+          <div class="share-container">
+            <div class="dummy-feed">
+              <div class="dummy-avatar"></div>
+              <div>
+                <div style="font-size: 15px; font-weight: 700; color: #2D2D2D;">Sharing from Instagram...</div>
+                <div style="font-size: 12px; color: #8A7E72;">Reel Link detected on clipboard</div>
+              </div>
+            </div>
+
+            <div class="share-modal">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="font-size: 14px; font-weight: 800; color: var(--sage); letter-spacing: 0.5px;">
+                  ✦ SAVING TO RE:MIND
+                </div>
+                <span style="font-size: 12px; font-weight: 700; color: var(--text-secondary); background: var(--bg-secondary); padding: 4px 10px; border-radius: 999px;">Clean Scraper</span>
+              </div>
+
+              <div class="share-thumb">
+                <span>📑</span>
+              </div>
+
+              <div>
+                <div style="font-size: 20px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; line-height: 1.3;">
+                  Design Principles for Calm Computing
+                </div>
+                <div style="font-size: 14px; color: var(--text-secondary);">
+                  medium.com · 4 min read
+                </div>
+              </div>
+
+              <div class="quote-box" style="font-size: 14px; padding: 10px 14px;">
+                “Focus on software that respects human attention over viral loops.”
+              </div>
+
+              <div class="tags-row">
+                <span class="tag">#design</span>
+                <span class="tag">#philosophy</span>
+                <span class="tag">#technology</span>
+              </div>
+
+              <div class="btn-main" style="background: var(--text-primary); padding: 16px;">
+                Save to Sanctuary
+              </div>
+            </div>
+          </div>
+        `
+      },
+      3: {
+        badge: "🗂 SMART FILTERS",
+        headline: "Organize by Time & Mood",
+        subtitle: "Filter by reading duration, custom collections, and zero guilt",
+        activeTab: 2,
+        render: () => `
+          <div class="app-meta">ALL SAVED ITEMS</div>
+          <div class="app-brand-row">
+            <div class="app-brand">Library</div>
+            <div class="badge-counter">24 saved</div>
+          </div>
+
+          <div class="search-input-box">
+            <span>🔍</span>
+            <span>Search titles, notes, or tags...</span>
+          </div>
+
+          <div class="chips-bar">
+            <div class="chip-item active">All (24)</div>
+            <div class="chip-item">⚡ 5m (8)</div>
+            <div class="chip-item">⏳ 15m (10)</div>
+            <div class="chip-item">📚 Deep (6)</div>
+          </div>
+
+          <div class="lib-item">
+            <div>
+              <div class="lib-title">Why We Need Analog Hobbies</div>
+              <div class="lib-sub">Substack · Saved yesterday</div>
+            </div>
+            <span class="lib-pill">5 min</span>
+          </div>
+
+          <div class="lib-item">
+            <div>
+              <div class="lib-title">Typography for Slower Reading</div>
+              <div class="lib-sub">The Atlantic · 3 days ago</div>
+            </div>
+            <span class="lib-pill">8 min</span>
+          </div>
+
+          <div class="lib-item">
+            <div>
+              <div class="lib-title">The Lost Art of Deep Leisure</div>
+              <div class="lib-sub">Aeon Essays · Last week</div>
+            </div>
+            <span class="lib-pill">15 min</span>
+          </div>
+
+          <div class="lib-item">
+            <div>
+              <div class="lib-title">Minimalist Tools for Modern Thinkers</div>
+              <div class="lib-sub">Offscreen Mag · 2 weeks ago</div>
+            </div>
+            <span class="lib-pill">10 min</span>
+          </div>
+        `
+      },
+      4: {
+        badge: "🛡️ 100% PRIVATE",
+        headline: "Local & Private Sanctuary",
+        subtitle: "On-device SQLite storage. Zero tracking. Zero cloud lock-in.",
+        activeTab: 3,
+        render: () => `
+          <div class="app-meta">PREFERENCES & CONTROL</div>
+          <div class="app-brand-row">
+            <div class="app-brand">Settings</div>
+            <div class="badge-counter" style="color: var(--sage);">Offline Mode</div>
+          </div>
+
+          <div class="shield-box">
+            <div class="shield-icon">🛡️</div>
+            <div>
+              <div style="font-size: 19px; font-weight: 800; color: var(--text-primary);">On-Device SQLite</div>
+              <div style="font-size: 13px; font-weight: 700; color: var(--sage);">100% Local · 0 Analytics Trackers</div>
+            </div>
+          </div>
+
+          <div class="settings-group-title">DAILY RESURFACING</div>
+          <div class="lib-item">
+            <div>
+              <div class="lib-title">Evening Nudge Notification</div>
+              <div class="lib-sub">Every day at 8:30 PM</div>
+            </div>
+            <span style="font-size: 15px; font-weight: 800; color: var(--sage);">ON</span>
+          </div>
+
+          <div class="settings-group-title">ZERO GUILT MAINTENANCE</div>
+          <div class="lib-item">
+            <div>
+              <div class="lib-title">Auto-Purge Stale Items</div>
+              <div class="lib-sub">Gently archive items untouched for 30 days</div>
+            </div>
+            <span class="lib-pill">30 Days</span>
+          </div>
+
+          <div class="lib-item" style="background: var(--bg-secondary); border-style: dashed; margin-top: 6px;">
+            <div>
+              <div class="lib-title">Export Database Backup</div>
+              <div class="lib-sub">Full SQLite & JSON portable dump</div>
+            </div>
+            <span style="font-size: 18px;">📥</span>
+          </div>
+        `
+      }
+    };
+
+    const s = screens[screenId] || screens[1];
+    document.getElementById('pBadge').textContent = s.badge;
+    document.getElementById('pHeadline').textContent = s.headline;
+    document.getElementById('pSubtitle').textContent = s.subtitle;
+    document.getElementById('sContent').innerHTML = s.render();
+
+    // Render Tab Bar with proper active icon
+    document.getElementById('sTabBar').innerHTML = `
+      <div class="t-icon ${s.activeTab === 1 ? 'active' : ''}">
+        <span>🧭</span>
+        <span>Today</span>
+      </div>
+      <div class="t-icon ${s.activeTab === 2 ? 'active' : ''}">
+        <span>🔖</span>
+        <span>Saved</span>
+      </div>
+      <div class="t-icon ${s.activeTab === 3 ? 'active' : ''}">
+        <span>⚙️</span>
+        <span>Settings</span>
+      </div>
+    `;
+  </script>
+</body>
+</html>

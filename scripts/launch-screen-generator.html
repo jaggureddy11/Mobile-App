@@ -1,0 +1,1427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Re:Mind Launch Screen & App Store Mockup Generator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #FBF9F6;
+      --bg-secondary: #F5F0E8;
+      --card: #FFFFFF;
+      --text-primary: #2D2D2D;
+      --text-secondary: #8A7E72;
+      --text-tertiary: #D4C4B0;
+      --accent: #D4C4B0;
+      --sage: #7C8B68;
+      --terracotta: #C86D5B;
+      --border: rgba(212, 196, 176, 0.35);
+      --shadow-soft: 0 30px 80px -15px rgba(45, 45, 45, 0.16);
+      --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-serif: 'Playfair Display', Georgia, serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background: #ECE5DC;
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top App Navigation */
+    header.generator-header {
+      background: #FFFFFF;
+      border-bottom: 1px solid var(--border);
+      padding: 16px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .brand-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-logo-icon {
+      width: 36px;
+      height: 36px;
+      background: var(--text-primary);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #FFFFFF;
+      font-weight: 700;
+      font-size: 18px;
+      letter-spacing: -0.5px;
+    }
+
+    .brand-name {
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      color: var(--text-primary);
+    }
+
+    .brand-pill {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 999px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .btn {
+      padding: 10px 18px;
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+      border: 1px solid transparent;
+      text-decoration: none;
+    }
+
+    .btn-primary {
+      background: var(--text-primary);
+      color: #FFFFFF;
+    }
+    .btn-primary:hover {
+      background: #1A1A1A;
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background: #FFFFFF;
+      border-color: var(--border);
+      color: var(--text-primary);
+    }
+    .btn-secondary:hover {
+      background: var(--bg-secondary);
+    }
+
+    /* Main Workspace Layout */
+    .workspace {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* Left Control Sidebar */
+    .sidebar {
+      width: 420px;
+      background: #FFFFFF;
+      border-right: 1px solid var(--border);
+      padding: 24px;
+      overflow-y: auto;
+      max-height: calc(100vh - 70px);
+    }
+
+    .sidebar-section {
+      margin-bottom: 28px;
+    }
+
+    .sidebar-section-title {
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-secondary);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .preset-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .preset-card {
+      border: 2px solid var(--border);
+      border-radius: 14px;
+      padding: 12px;
+      cursor: pointer;
+      background: var(--bg);
+      transition: all 0.2s ease;
+      text-align: left;
+    }
+
+    .preset-card:hover {
+      border-color: var(--text-secondary);
+      transform: translateY(-1px);
+    }
+
+    .preset-card.active {
+      border-color: var(--text-primary);
+      background: #FFFFFF;
+      box-shadow: 0 4px 14px rgba(45, 45, 45, 0.08);
+    }
+
+    .preset-num {
+      font-size: 10px;
+      font-weight: 800;
+      color: var(--text-secondary);
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+
+    .preset-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-primary);
+      line-height: 1.3;
+    }
+
+    .input-group {
+      margin-bottom: 14px;
+    }
+
+    .input-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 6px;
+      display: block;
+    }
+
+    .input-control {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-family: inherit;
+      font-size: 13px;
+      color: var(--text-primary);
+      background: var(--bg);
+      transition: border-color 0.2s;
+    }
+
+    .input-control:focus {
+      outline: none;
+      border-color: var(--text-primary);
+      background: #FFFFFF;
+    }
+
+    textarea.input-control {
+      resize: vertical;
+      min-height: 64px;
+    }
+
+    .palette-selector {
+      display: flex;
+      gap: 10px;
+    }
+
+    .palette-btn {
+      flex: 1;
+      height: 40px;
+      border-radius: 10px;
+      border: 2px solid transparent;
+      cursor: pointer;
+      position: relative;
+      transition: transform 0.15s;
+    }
+    .palette-btn:hover {
+      transform: scale(1.05);
+    }
+    .palette-btn.active {
+      border-color: var(--text-primary);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+
+    /* Preview Canvas Area */
+    .preview-stage {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 40px;
+      overflow: auto;
+      background: radial-gradient(circle at center, #EFE8DF 0%, #DFD5C8 100%);
+    }
+
+    /* The Exportable Poster Canvas (Target 1080x1920 scaled down visually) */
+    .poster-container {
+      width: 480px;
+      height: 853px; /* Exact 9:16 aspect ratio */
+      position: relative;
+      border-radius: 36px;
+      overflow: hidden;
+      box-shadow: 0 35px 90px -15px rgba(50, 40, 30, 0.35);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 56px 36px 0 36px;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* Theme Canvas Background Variants */
+    .bg-cream-radial {
+      background: radial-gradient(circle at 50% 30%, #FFFFFF 0%, #FBF9F6 45%, #F4ECE1 100%);
+    }
+    .bg-soft-sand {
+      background: linear-gradient(180deg, #F9F7F4 0%, #EFE8DD 100%);
+    }
+    .bg-sage-mist {
+      background: radial-gradient(circle at 50% 25%, #F7FAF5 0%, #EDF3E9 55%, #E2ECE0 100%);
+    }
+    .bg-warm-studio {
+      background: radial-gradient(circle at 50% 40%, #FFFDF9 0%, #F5ECE0 60%, #E8DC run 100%);
+    }
+
+    /* Poster Header Copy */
+    .poster-badge {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      color: var(--sage);
+      background: rgba(124, 139, 104, 0.12);
+      padding: 6px 14px;
+      border-radius: 999px;
+      margin-bottom: 18px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .poster-headline {
+      font-family: var(--font-serif);
+      font-size: 38px;
+      line-height: 1.15;
+      font-weight: 700;
+      color: var(--text-primary);
+      text-align: center;
+      letter-spacing: -0.5px;
+      margin-bottom: 14px;
+      max-width: 90%;
+    }
+
+    .poster-subtitle {
+      font-size: 15px;
+      line-height: 1.45;
+      font-weight: 500;
+      color: var(--text-secondary);
+      text-align: center;
+      max-width: 85%;
+      margin-bottom: 34px;
+    }
+
+    /* Realistic Phone Mockup Frame (iPhone 16 Pro Style) */
+    .phone-mockup {
+      width: 320px;
+      height: 600px;
+      background: #111111;
+      border-radius: 52px;
+      padding: 10px;
+      position: relative;
+      box-shadow: 
+        0 0 0 2px #44403C,
+        0 0 0 5px #D1C7BA,
+        0 30px 80px -10px rgba(45, 45, 45, 0.35);
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Screen Inner */
+    .phone-screen {
+      width: 100%;
+      height: 100%;
+      background: var(--bg);
+      border-radius: 42px;
+      overflow: hidden;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Dynamic Island */
+    .dynamic-island {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 90px;
+      height: 24px;
+      background: #000000;
+      border-radius: 20px;
+      z-index: 50;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding-right: 8px;
+    }
+    .dynamic-island::after {
+      content: '';
+      width: 9px;
+      height: 9px;
+      background: #1A1A2E;
+      border-radius: 50%;
+      box-shadow: inset 0 0 2px #3A3A5E;
+    }
+
+    /* Status Bar */
+    .phone-status-bar {
+      height: 40px;
+      padding: 12px 24px 0 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-primary);
+      z-index: 40;
+    }
+
+    .phone-content {
+      flex: 1;
+      padding: 14px 18px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* App UI Components inside mockup */
+    .app-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 12px;
+    }
+    .app-title {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--text-primary);
+      letter-spacing: -0.5px;
+    }
+    .app-subtitle {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Filter Chips */
+    .chips-row {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 14px;
+    }
+    .chip {
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+    }
+    .chip.active {
+      background: var(--text-primary);
+      color: #FFFFFF;
+      border-color: var(--text-primary);
+    }
+
+    /* Activity Card */
+    .activity-card {
+      background: #FFFFFF;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      padding: 16px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .card-meta-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .card-type-badge {
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      color: var(--sage);
+      background: rgba(124, 139, 104, 0.14);
+      padding: 3px 8px;
+      border-radius: 6px;
+      text-transform: uppercase;
+    }
+    .card-time {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .card-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-primary);
+      line-height: 1.3;
+    }
+
+    .card-quote-box {
+      background: var(--bg-secondary);
+      border-left: 3px solid var(--accent);
+      padding: 8px 12px;
+      border-radius: 0 8px 8px 0;
+      font-size: 12px;
+      font-style: italic;
+      color: var(--text-secondary);
+      line-height: 1.35;
+    }
+
+    .card-tags {
+      display: flex;
+      gap: 6px;
+    }
+    .card-tag {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-secondary);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      padding: 2px 8px;
+      border-radius: 999px;
+    }
+
+    .card-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 4px;
+    }
+
+    .btn-do-it {
+      background: var(--text-primary);
+      color: #FFFFFF;
+      border-radius: 12px;
+      padding: 10px;
+      font-size: 12px;
+      font-weight: 700;
+      text-align: center;
+      border: none;
+    }
+
+    .btn-row-secondary {
+      display: flex;
+      gap: 6px;
+    }
+
+    .btn-card-secondary {
+      flex: 1;
+      background: #FFFFFF;
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      border-radius: 10px;
+      padding: 8px;
+      font-size: 11px;
+      font-weight: 600;
+      text-align: center;
+    }
+
+    /* Share Intent Modal Overlay (Screen 2) */
+    .share-overlay {
+      background: #FFFFFF;
+      border-radius: 24px;
+      border: 1px solid var(--border);
+      padding: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .share-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .share-preview-thumb {
+      width: 100%;
+      height: 100px;
+      background: linear-gradient(135deg, #E6DDD1 0%, #D8CEBE 100%);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      color: var(--text-secondary);
+    }
+
+    /* Library list items (Screen 3) */
+    .list-item {
+      background: #FFFFFF;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .list-item-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 2px;
+    }
+    .list-item-sub {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+    .list-item-chip {
+      font-size: 10px;
+      font-weight: 700;
+      background: var(--bg-secondary);
+      padding: 3px 8px;
+      border-radius: 6px;
+      color: var(--text-primary);
+    }
+
+    /* Settings Privacy Card (Screen 4) */
+    .privacy-badge-card {
+      background: #FFFFFF;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .privacy-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: rgba(124, 139, 104, 0.16);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+
+    /* Phone Tab Bar */
+    .phone-tab-bar {
+      height: 60px;
+      background: rgba(255, 255, 255, 0.95);
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      padding-bottom: 10px;
+    }
+    .tab-icon {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-secondary);
+    }
+    .tab-icon.active {
+      color: var(--text-primary);
+    }
+
+    /* Home Indicator */
+    .home-indicator {
+      width: 120px;
+      height: 4px;
+      background: #000000;
+      border-radius: 2px;
+      position: absolute;
+      bottom: 6px;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    /* Store Download Badges at bottom */
+    .store-badges {
+      position: absolute;
+      bottom: 24px;
+      display: flex;
+      gap: 12px;
+      z-index: 20;
+    }
+    .store-badge {
+      background: #000000;
+      color: #FFFFFF;
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    /* Hidden Canvas for High-Res PNG Export */
+    #exportCanvas {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="generator-header">
+    <div class="brand-title">
+      <div class="brand-logo-icon">R</div>
+      <div class="brand-name">Re:Mind Launch Screen Studio</div>
+      <span class="brand-pill">Exact Theme Engine</span>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-secondary" onclick="exportCurrentScreen()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export This Screen (PNG)
+      </button>
+      <button class="btn btn-primary" onclick="exportAllScreens()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+        Export Complete Set (All 4)
+      </button>
+    </div>
+  </header>
+
+  <div class="workspace">
+    <!-- Left Controls Panel -->
+    <aside class="sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">1. Select Preset Screen</div>
+        <div class="preset-grid">
+          <div class="preset-card active" onclick="loadPreset(1)">
+            <div class="preset-num">SCREEN 01</div>
+            <div class="preset-title">Revisit with Intention</div>
+          </div>
+          <div class="preset-card" onclick="loadPreset(2)">
+            <div class="preset-num">SCREEN 02</div>
+            <div class="preset-title">Save in One Tap</div>
+          </div>
+          <div class="preset-card" onclick="loadPreset(3)">
+            <div class="preset-num">SCREEN 03</div>
+            <div class="preset-title">Filter by Time & Mood</div>
+          </div>
+          <div class="preset-card" onclick="loadPreset(4)">
+            <div class="preset-num">SCREEN 04</div>
+            <div class="preset-title">100% Private & Local</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">2. Text & Messaging</div>
+        <div class="input-group">
+          <label class="input-label">Top Category Badge</label>
+          <input type="text" id="inputBadge" class="input-control" value="DAILY DIGEST" oninput="updateCopy()">
+        </div>
+        <div class="input-group">
+          <label class="input-label">Headline</label>
+          <input type="text" id="inputHeadline" class="input-control" value="Revisit with Intention" oninput="updateCopy()">
+        </div>
+        <div class="input-group">
+          <label class="input-label">Subtitle Description</label>
+          <textarea id="inputSubtitle" class="input-control" oninput="updateCopy()">Gentle daily resurfacing that respects your focus and mental peace</textarea>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">3. Canvas Theme Background</div>
+        <div class="palette-selector">
+          <button class="palette-btn active" style="background: radial-gradient(circle, #FFFFFF 0%, #FBF9F6 50%, #F4ECE1 100%);" onclick="setPalette('bg-cream-radial', this)" title="Warm Cream Radial"></button>
+          <button class="palette-btn" style="background: linear-gradient(180deg, #F9F7F4 0%, #EFE8DD 100%);" onclick="setPalette('bg-soft-sand', this)" title="Soft Sand"></button>
+          <button class="palette-btn" style="background: radial-gradient(circle, #F7FAF5 0%, #EDF3E9 55%, #E2ECE0 100%);" onclick="setPalette('bg-sage-mist', this)" title="Sage Mist"></button>
+          <button class="palette-btn" style="background: radial-gradient(circle, #FFFDF9 0%, #F5ECE0 60%, #E8DC run 100%);" onclick="setPalette('bg-warm-studio', this)" title="Warm Studio"></button>
+        </div>
+      </div>
+
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">4. Target Dimensions</div>
+        <div class="input-group">
+          <select id="exportResolution" class="input-control">
+            <option value="playstore">Google Play Store Phone (1080 × 1920 px)</option>
+            <option value="appstore">Apple App Store 6.7" (1290 × 2796 px)</option>
+            <option value="social">Social & LinkedIn Poster (1080 × 1350 px)</option>
+          </select>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Live Preview Stage -->
+    <main class="preview-stage">
+      <div id="poster" class="poster-container bg-cream-radial">
+        <div id="displayBadge" class="poster-badge">✦ DAILY DIGEST</div>
+        <h1 id="displayHeadline" class="poster-headline">Revisit with Intention</h1>
+        <p id="displaySubtitle" class="poster-subtitle">Gentle daily resurfacing that respects your focus and mental peace</p>
+
+        <!-- Phone Mockup Frame -->
+        <div class="phone-mockup">
+          <div class="phone-screen">
+            <div class="dynamic-island"></div>
+            <div class="phone-status-bar">
+              <span>9:41</span>
+              <span>􀋒 􀙇 􀛨</span>
+            </div>
+
+            <!-- Dynamic UI based on chosen screen -->
+            <div id="phoneInnerContent" class="phone-content">
+              <!-- Rendered dynamically via JS -->
+            </div>
+
+            <!-- Bottom Navigation Bar -->
+            <div class="phone-tab-bar">
+              <div class="tab-icon active">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
+                <span>Today</span>
+              </div>
+              <div class="tab-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+                <span>Saved</span>
+              </div>
+              <div class="tab-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                <span>Settings</span>
+              </div>
+            </div>
+
+            <div class="home-indicator"></div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <canvas id="exportCanvas"></canvas>
+
+  <script>
+    const presets = {
+      1: {
+        badge: "✦ DAILY DIGEST",
+        headline: "Revisit with Intention",
+        subtitle: "Gentle daily resurfacing that respects your focus and mental peace",
+        render: () => `
+          <div class="app-header">
+            <div>
+              <div class="app-subtitle">Today's Focus</div>
+              <div class="app-title">Re:Mind</div>
+            </div>
+            <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary); background: var(--bg-secondary); padding: 4px 10px; border-radius: 999px;">
+              3 of 3 ready
+            </div>
+          </div>
+
+          <div class="chips-row">
+            <div class="chip active">⚡ 5m quick</div>
+            <div class="chip">⏳ 15m</div>
+            <div class="chip">📚 Deep dive</div>
+          </div>
+
+          <div class="activity-card">
+            <div class="card-meta-row">
+              <span class="card-type-badge">Article</span>
+              <span class="card-time">5 min read</span>
+            </div>
+            <div class="card-title">The Architecture of Solitude</div>
+            <div class="card-quote-box">“You wanted to read this when you had a quiet morning.”</div>
+            <div class="card-tags">
+              <span class="card-tag">#reading</span>
+              <span class="card-tag">#mindfulness</span>
+            </div>
+            <div class="card-actions">
+              <button class="btn-do-it">Do it now</button>
+              <div class="btn-row-secondary">
+                <button class="btn-card-secondary">Later</button>
+                <button class="btn-card-secondary">Let it go</button>
+              </div>
+            </div>
+          </div>
+        `
+      },
+      2: {
+        badge: "⚡ 1-TAP CAPTURE",
+        headline: "Save from Any App",
+        subtitle: "Share reels, articles & videos instantly with clean auto-tagging",
+        render: () => `
+          <div style="opacity: 0.35; pointer-events: none; margin-bottom: -10px;">
+            <div class="app-title" style="margin-bottom: 8px;">Instagram Reel</div>
+            <div style="height: 100px; background: #E0D7CB; border-radius: 12px; margin-bottom: 12px;"></div>
+          </div>
+
+          <div class="share-overlay">
+            <div class="share-header">
+              <span style="font-size: 14px;">✦</span>
+              <span>Saving to Re:Mind</span>
+            </div>
+            <div class="share-preview-thumb">
+              <span style="font-size: 32px;">📑</span>
+            </div>
+            <div>
+              <div style="font-size: 14px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">
+                Design Principles for Calm Computing
+              </div>
+              <div style="font-size: 11px; color: var(--text-secondary);">
+                medium.com · 4 min read
+              </div>
+            </div>
+            <div class="card-tags">
+              <span class="card-tag">#design</span>
+              <span class="card-tag">#technology</span>
+              <span class="card-tag">#calm</span>
+            </div>
+            <button class="btn-do-it" style="background: var(--sage); padding: 12px;">
+              Save to Sanctuary
+            </button>
+          </div>
+        `
+      },
+      3: {
+        badge: "🗂 SMART FILTERS",
+        headline: "Organize by Time & Mood",
+        subtitle: "Filter by reading duration, custom collections, and zero guilt",
+        render: () => `
+          <div class="app-header">
+            <div>
+              <div class="app-subtitle">Library</div>
+              <div class="app-title">All Saved</div>
+            </div>
+            <div style="font-size: 12px; font-weight: 700; color: var(--text-primary);">
+              18 items
+            </div>
+          </div>
+
+          <div class="chips-row">
+            <div class="chip active">All (18)</div>
+            <div class="chip">⚡ 5m (6)</div>
+            <div class="chip">⏳ 15m (7)</div>
+            <div class="chip">📚 Deep (5)</div>
+          </div>
+
+          <div class="list-item">
+            <div>
+              <div class="list-item-title">Why We Need Analog Hobbies</div>
+              <div class="list-item-sub">Substack · Saved yesterday</div>
+            </div>
+            <span class="list-item-chip">5 min</span>
+          </div>
+
+          <div class="list-item">
+            <div>
+              <div class="list-item-title">Typography for Slower Reading</div>
+              <div class="list-item-sub">The Atlantic · 3 days ago</div>
+            </div>
+            <span class="list-item-chip">8 min</span>
+          </div>
+
+          <div class="list-item">
+            <div>
+              <div class="list-item-title">The Lost Art of Deep Leisure</div>
+              <div class="list-item-sub">Aeon Essays · Last week</div>
+            </div>
+            <span class="list-item-chip">15 min</span>
+          </div>
+        `
+      },
+      4: {
+        badge: "🔒 PRIVACY SANCTUARY",
+        headline: "100% Private & Offline",
+        subtitle: "On-device SQLite storage. Zero tracking. Zero cloud lock-in.",
+        render: () => `
+          <div class="app-header">
+            <div>
+              <div class="app-subtitle">Settings</div>
+              <div class="app-title">Sanctuary</div>
+            </div>
+          </div>
+
+          <div class="privacy-badge-card">
+            <div class="privacy-icon">🛡️</div>
+            <div>
+              <div style="font-size: 13px; font-weight: 700; color: var(--text-primary);">On-Device SQLite</div>
+              <div style="font-size: 10px; color: var(--sage); font-weight: 700;">Zero trackers · 100% Local</div>
+            </div>
+          </div>
+
+          <div class="list-item">
+            <div>
+              <div class="list-item-title">Daily Nudge Notification</div>
+              <div class="list-item-sub">Every evening at 8:30 PM</div>
+            </div>
+            <span style="color: var(--sage); font-weight: 800;">ON</span>
+          </div>
+
+          <div class="list-item">
+            <div>
+              <div class="list-item-title">Auto-Purge Expired Items</div>
+              <div class="list-item-sub">Release stale links after 30 days</div>
+            </div>
+            <span style="font-size: 11px; font-weight: 700; color: var(--text-secondary);">30 Days</span>
+          </div>
+
+          <div class="list-item" style="background: var(--bg-secondary); border-style: dashed;">
+            <div>
+              <div class="list-item-title">Export All Data (JSON)</div>
+              <div class="list-item-sub">Download your data anytime</div>
+            </div>
+            <span>📤</span>
+          </div>
+        `
+      }
+    };
+
+    let currentPreset = 1;
+
+    function loadPreset(num) {
+      currentPreset = num;
+      document.querySelectorAll('.preset-card').forEach((card, idx) => {
+        card.classList.toggle('active', idx + 1 === num);
+      });
+
+      const data = presets[num];
+      document.getElementById('inputBadge').value = data.badge;
+      document.getElementById('inputHeadline').value = data.headline;
+      document.getElementById('inputSubtitle').value = data.subtitle;
+
+      updateCopy();
+      document.getElementById('phoneInnerContent').innerHTML = data.render();
+    }
+
+    function updateCopy() {
+      document.getElementById('displayBadge').textContent = document.getElementById('inputBadge').value;
+      document.getElementById('displayHeadline').textContent = document.getElementById('inputHeadline').value;
+      document.getElementById('displaySubtitle').textContent = document.getElementById('inputSubtitle').value;
+    }
+
+    function setPalette(className, btn) {
+      const poster = document.getElementById('poster');
+      poster.className = 'poster-container ' + className;
+      document.querySelectorAll('.palette-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    }
+
+    // High-Resolution Canvas Rendering Engine
+    function renderPosterToCanvas(presetId, width, height) {
+      return new Promise((resolve) => {
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        const scale = width / 1080;
+
+        // 1. Draw Background Gradient
+        const gradient = ctx.createRadialGradient(
+          width / 2, height * 0.35, width * 0.1,
+          width / 2, height * 0.5, width * 0.85
+        );
+        gradient.addColorStop(0, '#FFFFFF');
+        gradient.addColorStop(0.45, '#FBF9F6');
+        gradient.addColorStop(1, '#F2E8DC');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, width, height);
+
+        // 2. Draw Subtle Warm Decorative Glow
+        const glow = ctx.createRadialGradient(width / 2, height * 0.65, 50 * scale, width / 2, height * 0.65, 420 * scale);
+        glow.addColorStop(0, 'rgba(212, 196, 176, 0.28)');
+        glow.addColorStop(1, 'rgba(212, 196, 176, 0)');
+        ctx.fillStyle = glow;
+        ctx.fillRect(0, 0, width, height);
+
+        const data = presets[presetId];
+
+        // 3. Category Badge
+        const badgeText = data.badge;
+        ctx.font = `800 ${16 * scale}px "Plus Jakarta Sans", sans-serif`;
+        const badgeMetrics = ctx.measureText(badgeText);
+        const badgeW = badgeMetrics.width + 36 * scale;
+        const badgeH = 34 * scale;
+        const badgeX = (width - badgeW) / 2;
+        const badgeY = 90 * scale;
+
+        ctx.fillStyle = 'rgba(124, 139, 104, 0.14)';
+        roundRect(ctx, badgeX, badgeY, badgeW, badgeH, 17 * scale);
+        ctx.fill();
+
+        ctx.fillStyle = '#7C8B68';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(badgeText, width / 2, badgeY + badgeH / 2);
+
+        // 4. Headline
+        ctx.font = `700 ${52 * scale}px "Playfair Display", Georgia, serif`;
+        ctx.fillStyle = '#2D2D2D';
+        ctx.fillText(data.headline, width / 2, 175 * scale);
+
+        // 5. Subtitle
+        ctx.font = `500 ${22 * scale}px "Plus Jakarta Sans", sans-serif`;
+        ctx.fillStyle = '#8A7E72';
+        wrapText(ctx, data.subtitle, width / 2, 225 * scale, width * 0.78, 32 * scale);
+
+        // 6. Device Frame (Phone Mockup)
+        const phoneW = 540 * scale;
+        const phoneH = 1080 * scale;
+        const phoneX = (width - phoneW) / 2;
+        const phoneY = 320 * scale;
+        const cornerR = 64 * scale;
+
+        // Phone Shadow
+        ctx.shadowColor = 'rgba(45, 45, 45, 0.25)';
+        ctx.shadowBlur = 60 * scale;
+        ctx.shadowOffsetY = 30 * scale;
+
+        // Titanium Outer Bezel
+        ctx.fillStyle = '#D6CCC0';
+        roundRect(ctx, phoneX, phoneY, phoneW, phoneH, cornerR);
+        ctx.fill();
+
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
+        ctx.shadowOffsetY = 0;
+
+        // Inner Black Bezel
+        ctx.fillStyle = '#111111';
+        roundRect(ctx, phoneX + 4 * scale, phoneY + 4 * scale, phoneW - 8 * scale, phoneH - 8 * scale, cornerR - 4 * scale);
+        ctx.fill();
+
+        // Phone Screen Surface
+        const screenInset = 16 * scale;
+        const screenX = phoneX + screenInset;
+        const screenY = phoneY + screenInset;
+        const screenW = phoneW - screenInset * 2;
+        const screenH = phoneH - screenInset * 2;
+        const screenR = cornerR - 12 * scale;
+
+        ctx.save();
+        roundRect(ctx, screenX, screenY, screenW, screenH, screenR);
+        ctx.clip();
+
+        // Screen Background
+        ctx.fillStyle = '#FBF9F6';
+        ctx.fillRect(screenX, screenY, screenW, screenH);
+
+        // Dynamic Island
+        ctx.fillStyle = '#000000';
+        roundRect(ctx, screenX + (screenW - 140 * scale) / 2, screenY + 14 * scale, 140 * scale, 34 * scale, 17 * scale);
+        ctx.fill();
+
+        // Status Bar Time
+        ctx.font = `700 ${18 * scale}px "Plus Jakarta Sans", sans-serif`;
+        ctx.fillStyle = '#2D2D2D';
+        ctx.textAlign = 'left';
+        ctx.fillText('9:41', screenX + 32 * scale, screenY + 36 * scale);
+
+        // App Screen Header
+        ctx.font = `600 ${14 * scale}px "Plus Jakarta Sans", sans-serif`;
+        ctx.fillStyle = '#8A7E72';
+        ctx.fillText('TODAY\'S SANCTUARY', screenX + 28 * scale, screenY + 84 * scale);
+
+        ctx.font = `800 ${28 * scale}px "Plus Jakarta Sans", sans-serif`;
+        ctx.fillStyle = '#2D2D2D';
+        ctx.fillText('Re:Mind', screenX + 28 * scale, screenY + 118 * scale);
+
+        // Chips
+        const chips = ['⚡ 5m quick', '⏳ 15m', '📚 Deep dive'];
+        let chipX = screenX + 28 * scale;
+        chips.forEach((c, idx) => {
+          ctx.font = `700 ${14 * scale}px "Plus Jakarta Sans", sans-serif`;
+          const cWidth = ctx.measureText(c).width + 24 * scale;
+          ctx.fillStyle = idx === 0 ? '#2D2D2D' : '#F5F0E8';
+          roundRect(ctx, chipX, screenY + 140 * scale, cWidth, 32 * scale, 16 * scale);
+          ctx.fill();
+          ctx.fillStyle = idx === 0 ? '#FFFFFF' : '#8A7E72';
+          ctx.textAlign = 'center';
+          ctx.fillText(c, chipX + cWidth / 2, screenY + 161 * scale);
+          chipX += cWidth + 10 * scale;
+        });
+
+        // Main White Card
+        const cardY = screenY + 195 * scale;
+        const cardW = screenW - 56 * scale;
+        const cardH = 340 * scale;
+        const cardX = screenX + 28 * scale;
+
+        ctx.fillStyle = '#FFFFFF';
+        roundRect(ctx, cardX, cardY, cardW, cardH, 24 * scale);
+        ctx.fill();
+        ctx.lineWidth = 1 * scale;
+        ctx.strokeStyle = 'rgba(212, 196, 176, 0.4)';
+        ctx.stroke();
+
+        if (presetId === 1) {
+          // Article Badge
+          ctx.fillStyle = 'rgba(124, 139, 104, 0.15)';
+          roundRect(ctx, cardX + 20 * scale, cardY + 20 * scale, 75 * scale, 24 * scale, 6 * scale);
+          ctx.fill();
+          ctx.fillStyle = '#7C8B68';
+          ctx.font = `800 ${12 * scale}px "Plus Jakarta Sans", sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.fillText('ARTICLE', cardX + 57 * scale, cardY + 36 * scale);
+
+          ctx.fillStyle = '#8A7E72';
+          ctx.font = `600 ${14 * scale}px "Plus Jakarta Sans", sans-serif`;
+          ctx.textAlign = 'right';
+          ctx.fillText('5 min read', cardX + cardW - 20 * scale, cardY + 36 * scale);
+
+          // Card Title
+          ctx.textAlign = 'left';
+          ctx.fillStyle = '#2D2D2D';
+          ctx.font = `700 ${22 * scale}px "Plus Jakarta Sans", sans-serif`;
+          ctx.fillText('The Architecture of Solitude', cardX + 20 * scale, cardY + 80 * scale);
+
+          // Quote box
+          ctx.fillStyle = '#F5F0E8';
+          roundRect(ctx, cardX + 20 * scale, cardY + 105 * scale, cardW - 40 * scale, 56 * scale, 10 * scale);
+          ctx.fill();
+          ctx.fillStyle = '#8A7E72';
+          ctx.font = `italic 500 ${14 * scale}px "Plus Jakarta Sans", sans-serif`;
+          ctx.fillText('“You wanted to read this with a quiet mind.”', cardX + 36 * scale, cardY + 138 * scale);
+
+          // Tags
+          ctx.fillStyle = 'rgba(212, 196, 176, 0.25)';
+          roundRect(ctx, cardX + 20 * scale, cardY + 180 * scale, 85 * scale, 24 * scale, 12 * scale);
+          ctx.fill();
+          ctx.fillStyle = '#8A7E72';
+          ctx.font = `700 ${12 * scale}px "Plus Jakarta Sans", sans-serif`;
+          ctx.fillText('#reading', cardX + 36 * scale, cardY + 196 * scale);
+
+          // Action Buttons
+          ctx.fillStyle = '#2D2D2D';
+          roundRect(ctx, cardX + 20 * scale, cardY + 225 * scale, cardW - 40 * scale, 46 * scale, 14 * scale);
+          ctx.fill();
+          ctx.fillStyle = '#FFFFFF';
+          ctx.font = `700 ${16 * scale}px "Plus Jakarta Sans", sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.fillText('Do it now', cardX + cardW / 2, cardY + 253 * scale);
+
+          // Later & Let go
+          const halfBtnW = (cardW - 50 * scale) / 2;
+          ctx.fillStyle = '#FFFFFF';
+          ctx.strokeStyle = 'rgba(212, 196, 176, 0.4)';
+          roundRect(ctx, cardX + 20 * scale, cardY + 280 * scale, halfBtnW, 40 * scale, 12 * scale);
+          ctx.fill(); ctx.stroke();
+          ctx.fillStyle = '#2D2D2D';
+          ctx.fillText('Later', cardX + 20 * scale + halfBtnW / 2, cardY + 304 * scale);
+
+          roundRect(ctx, cardX + 30 * scale + halfBtnW, cardY + 280 * scale, halfBtnW, 40 * scale, 12 * scale);
+          ctx.fill(); ctx.stroke();
+          ctx.fillStyle = '#8A7E72';
+          ctx.fillText('Let it go', cardX + 30 * scale + halfBtnW + halfBtnW / 2, cardY + 304 * scale);
+        } else if (presetId === 2) {
+          // Share in One Tap Card
+          ctx.fillStyle = '#7C8B68';
+          ctx.font = `800 ${14 * scale}px "Plus Jakarta Sans", sans-serif`;
+          ctx.textAlign = 'left';
+          ctx.fillText('✦ INSTANT CAPTURE', cardX + 20 * scale, cardY + 36 * scale);
+
+          ctx.fillStyle = '#2D2D2D';
+          ctx.font = `700 ${22 * scale}px "Plus Jakarta Sans", sans-serif`;
+          ctx.fillText('Calm Computing Principles', cardX + 20 * scale, cardY + 76 * scale);
+
+          ctx.fillStyle = '#8A7E72';
+          ctx.font = `500 ${15 * scale}px "Plus Jakarta Sans", sans-serif`;
+          ctx.fillText('medium.com · Auto-tagged in 1 tap', cardX + 20 * scale, cardY + 104 * scale);
+
+          // Simulated image preview
+          ctx.fillStyle = '#EFE7DC';
+          roundRect(ctx, cardX + 20 * scale, cardY + 124 * scale, cardW - 40 * scale, 120 * scale, 14 * scale);
+          ctx.fill();
+
+          ctx.fillStyle = '#7C8B68';
+          roundRect(ctx, cardX + 20 * scale, cardY + 264 * scale, cardW - 40 * scale, 50 * scale, 14 * scale);
+          ctx.fill();
+          ctx.fillStyle = '#FFFFFF';
+          ctx.font = `700 ${16 * scale}px "Plus Jakarta Sans", sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.fillText('Save to Sanctuary', cardX + cardW / 2, cardY + 295 * scale);
+        } else if (presetId === 3) {
+          // Organize by Time card preview
+          ctx.fillStyle = '#2D2D2D';
+          ctx.font = `700 ${20 * scale}px "Plus Jakarta Sans", sans-serif`;
+          ctx.textAlign = 'left';
+          ctx.fillText('Why We Need Analog Hobbies', cardX + 20 * scale, cardY + 45 * scale);
+
+          ctx.fillStyle = '#8A7E72';
+          ctx.font = `500 ${14 * scale}px "Plus Jakarta Sans", sans-serif`;
+          ctx.fillText('Substack · 5 min read', cardX + 20 * scale, cardY + 75 * scale);
+
+          ctx.fillStyle = '#F5F0E8';
+          roundRect(ctx, cardX + 20 * scale, cardY + 110 * scale, cardW - 40 * scale, 80 * scale, 12 * scale);
+          ctx.fill();
+          ctx.fillStyle = '#2D2D2D';
+          ctx.font = `700 ${17 * scale}px "Plus Jakarta Sans", sans-serif`;
+          ctx.fillText('The Lost Art of Deep Leisure', cardX + 36 * scale, cardY + 145 * scale);
+          ctx.font = `500 ${13 * scale}px "Plus Jakarta Sans", sans-serif`;
+          ctx.fillStyle = '#8A7E72';
+          ctx.fillText('Aeon Essays · 15 min read', cardX + 36 * scale, cardY + 170 * scale);
+
+          ctx.fillStyle = '#2D2D2D';
+          roundRect(ctx, cardX + 20 * scale, cardY + 240 * scale, cardW - 40 * scale, 48 * scale, 14 * scale);
+          ctx.fill();
+          ctx.fillStyle = '#FFFFFF';
+          ctx.font = `700 ${16 * scale}px "Plus Jakarta Sans", sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.fillText('Filter by Mood & Time', cardX + cardW / 2, cardY + 270 * scale);
+        } else {
+          // 100% Private card preview
+          ctx.fillStyle = 'rgba(124, 139, 104, 0.16)';
+          roundRect(ctx, cardX + 20 * scale, cardY + 24 * scale, 60 * scale, 60 * scale, 16 * scale);
+          ctx.fill();
+          ctx.font = `30 * scale}px sans-serif`;
+          ctx.fillText('🛡️', cardX + 32 * scale, cardY + 62 * scale);
+
+          ctx.textAlign = 'left';
+          ctx.fillStyle = '#2D2D2D';
+          ctx.font = `700 ${22 * scale}px "Plus Jakarta Sans", sans-serif`;
+          ctx.fillText('Zero Cloud. Zero Trackers.', cardX + 96 * scale, cardY + 50 * scale);
+
+          ctx.fillStyle = '#7C8B68';
+          ctx.font = `700 ${14 * scale}px "Plus Jakarta Sans", sans-serif`;
+          ctx.fillText('100% On-Device SQLite', cardX + 96 * scale, cardY + 74 * scale);
+
+          ctx.fillStyle = '#8A7E72';
+          ctx.font = `500 ${15 * scale}px "Plus Jakarta Sans", sans-serif`;
+          wrapText(ctx, 'Your bookmarks, notes, and habits live solely on your phone. No logins, no ad networks, no data selling.', cardX + 20 * scale, cardY + 125 * scale, cardW - 40 * scale, 24 * scale);
+
+          ctx.fillStyle = '#2D2D2D';
+          roundRect(ctx, cardX + 20 * scale, cardY + 250 * scale, cardW - 40 * scale, 48 * scale, 14 * scale);
+          ctx.fill();
+          ctx.fillStyle = '#FFFFFF';
+          ctx.font = `700 ${16 * scale}px "Plus Jakarta Sans", sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.fillText('Export Database Anytime', cardX + cardW / 2, cardY + 280 * scale);
+        }
+
+        // Bottom Tab Bar
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(screenX, screenY + screenH - 64 * scale, screenW, 64 * scale);
+        ctx.strokeStyle = 'rgba(212, 196, 176, 0.3)';
+        ctx.beginPath();
+        ctx.moveTo(screenX, screenY + screenH - 64 * scale);
+        ctx.lineTo(screenX + screenW, screenY + screenH - 64 * scale);
+        ctx.stroke();
+
+        ctx.fillStyle = '#2D2D2D';
+        ctx.font = `700 ${12 * scale}px "Plus Jakarta Sans", sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.fillText('Today', screenX + screenW * 0.2, screenY + screenH - 24 * scale);
+        ctx.fillStyle = '#8A7E72';
+        ctx.fillText('Saved', screenX + screenW * 0.5, screenY + screenH - 24 * scale);
+        ctx.fillText('Settings', screenX + screenW * 0.8, screenY + screenH - 24 * scale);
+
+        // Home indicator
+        ctx.fillStyle = '#000000';
+        roundRect(ctx, screenX + (screenW - 140 * scale) / 2, screenY + screenH - 12 * scale, 140 * scale, 5 * scale, 3 * scale);
+        ctx.fill();
+
+        ctx.restore();
+
+        resolve(canvas);
+      });
+    }
+
+    function roundRect(ctx, x, y, width, height, radius) {
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + width - radius, y);
+      ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+      ctx.lineTo(x + width, y + height - radius);
+      ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+      ctx.lineTo(x + radius, y + height);
+      ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+    }
+
+    function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+      const words = text.split(' ');
+      let line = '';
+      let currentY = y;
+      ctx.textAlign = 'center';
+
+      for (let n = 0; n < words.length; n++) {
+        const testLine = line + words[n] + ' ';
+        const metrics = ctx.measureText(testLine);
+        const testWidth = metrics.width;
+        if (testWidth > maxWidth && n > 0) {
+          ctx.fillText(line.trim(), x, currentY);
+          line = words[n] + ' ';
+          currentY += lineHeight;
+        } else {
+          line = testLine;
+        }
+      }
+      ctx.fillText(line.trim(), x, currentY);
+    }
+
+    function getDimensions() {
+      const mode = document.getElementById('exportResolution').value;
+      if (mode === 'appstore') return { width: 1290, height: 2796, suffix: '1290x2796' };
+      if (mode === 'social') return { width: 1080, height: 1350, suffix: '1080x1350' };
+      return { width: 1080, height: 1920, suffix: '1080x1920' };
+    }
+
+    async function exportCurrentScreen() {
+      const { width, height, suffix } = getDimensions();
+      const canvas = await renderPosterToCanvas(currentPreset, width, height);
+      const link = document.createElement('a');
+      link.download = `remind-screen-0${currentPreset}-${suffix}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }
+
+    async function exportAllScreens() {
+      const { width, height, suffix } = getDimensions();
+      for (let i = 1; i <= 4; i++) {
+        const canvas = await renderPosterToCanvas(i, width, height);
+        const link = document.createElement('a');
+        link.download = `remind-screen-0${i}-${suffix}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        await new Promise(r => setTimeout(r, 400));
+      }
+    }
+
+    // Initialize with Screen 1
+    loadPreset(1);
+  </script>
+</body>
+</html>
