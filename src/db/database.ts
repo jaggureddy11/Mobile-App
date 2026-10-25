@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import * as SQLite from 'expo-sqlite';
 import { normalizeUrl } from '../domain/urlUtils';
 import { debugLogger } from '../utils/debugLogger';
@@ -22,16 +23,26 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
   if (dbInstance) {
     return dbInstance;
   }
-  dbInstance = await SQLite.openDatabaseAsync(DATABASE_NAME);
+  if (Platform.OS === 'web') {
+    const { getWebDatabase } = require('./webDatabase');
+    dbInstance = getWebDatabase();
+    return dbInstance!;
+  }
   try {
+    dbInstance = await SQLite.openDatabaseAsync(DATABASE_NAME);
     await initSchema(dbInstance);
   } catch (err: any) {
+    if (typeof process !== 'undefined' && process.env.NODE_ENV === 'test') {
+      const { getWebDatabase } = require('./webDatabase');
+      dbInstance = getWebDatabase();
+      return dbInstance!;
+    }
     if (__DEV__) console.warn('getDatabase initSchema caught error:', err?.message || err);
   }
   if (startupMigrationError) {
     throw new Error(`Database unavailable: ${startupMigrationError}`);
   }
-  return dbInstance;
+  return dbInstance!;
 }
 
 /**
@@ -40,6 +51,11 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
  */
 export async function retryDatabaseInitialization(customDb?: SQLite.SQLiteDatabase): Promise<void> {
   startupMigrationError = null;
+  if (Platform.OS === 'web') {
+    const { getWebDatabase } = require('./webDatabase');
+    dbInstance = getWebDatabase();
+    return;
+  }
   const targetDb = customDb || dbInstance || (await SQLite.openDatabaseAsync(DATABASE_NAME));
   dbInstance = targetDb;
   await initSchema(targetDb);
@@ -59,6 +75,9 @@ export async function runExclusiveTransaction(
   db: SQLite.SQLiteDatabase,
   action: (txn: SQLite.SQLiteDatabase) => Promise<void>
 ): Promise<void> {
+  if (Platform.OS === 'web') {
+    return await action(db);
+  }
   if (typeof (db as any).withExclusiveTransactionAsync === 'function') {
     return await (db as any).withExclusiveTransactionAsync(action);
   }
@@ -129,9 +148,35 @@ export async function initSchema(db: SQLite.SQLiteDatabase): Promise<void> {
         key TEXT PRIMARY KEY NOT NULL,
         value TEXT NOT NULL
       );
+
+      CREATE TABLE IF NOT EXISTS metadata_cache (
+        url TEXT PRIMARY KEY NOT NULL,
+        title TEXT,
+        description TEXT,
+        image_url TEXT,
+        site_name TEXT,
+        estimated_minutes INTEGER,
+        cached_at TEXT NOT NULL
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_metadata_cache_cached_at ON metadata_cache(cached_at);
     `);
 
     // Safe runtime migrations for existing databases
+    try {
+      await db.execAsync(`
+        CREATE TABLE IF NOT EXISTS metadata_cache (
+          url TEXT PRIMARY KEY NOT NULL,
+          title TEXT,
+          description TEXT,
+          image_url TEXT,
+          site_name TEXT,
+          estimated_minutes INTEGER,
+          cached_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_metadata_cache_cached_at ON metadata_cache(cached_at);
+      `);
+    } catch {}
     try { await db.execAsync('ALTER TABLE items ADD COLUMN collection_id TEXT;'); } catch {}
     try { await db.execAsync('ALTER TABLE items ADD COLUMN tags TEXT;'); } catch {}
     try { await db.execAsync('ALTER TABLE items ADD COLUMN remind_interval TEXT;'); } catch {}

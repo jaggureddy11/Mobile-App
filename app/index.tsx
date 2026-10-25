@@ -17,6 +17,8 @@ import { useSettingsStore } from '@/domain/useSettingsStore';
 import { useItemsStore } from '@/domain/useItemsStore';
 import { ReMindLogo } from '@/components';
 
+import { setupNotificationChannels } from '@/platform/notifications';
+
 const { width } = Dimensions.get('window');
 
 export default function SplashScreen() {
@@ -35,9 +37,10 @@ export default function SplashScreen() {
   const screenOpacity = useSharedValue(1);
 
   useEffect(() => {
-    // Preload stores
+    // Preload stores and setup notification channels
     loadSettings();
     loadItems();
+    setupNotificationChannels().catch(() => {});
 
     // 1. Logo entrance: Spring/Smooth scale & fade
     logoScale.value = withTiming(1, {
@@ -89,10 +92,23 @@ export default function SplashScreen() {
 
   const hasNavigated = useRef(false);
 
-  const navigateToDestination = () => {
+  const navigateToDestination = async () => {
     if (hasNavigated.current) return;
     hasNavigated.current = true;
-    if (settings?.onboarding_completed === false) {
+
+    // Retrieve active state directly from store to prevent stale closure bugs on reopen
+    let currentSettings = useSettingsStore.getState().settings;
+    if (useSettingsStore.getState().isLoading) {
+      try {
+        await Promise.race([
+          useSettingsStore.getState().loadSettings(),
+          new Promise((resolve) => setTimeout(resolve, 1500)),
+        ]);
+        currentSettings = useSettingsStore.getState().settings;
+      } catch {}
+    }
+
+    if (currentSettings?.onboarding_completed === false) {
       router.replace('/onboarding');
     } else {
       router.replace('/(tabs)/today');

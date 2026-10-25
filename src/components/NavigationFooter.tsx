@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Sun, Bookmark, Plus } from 'lucide-react-native';
 import { colors, typography, spacing, radii, shadows } from '@/theme';
 
@@ -16,9 +17,23 @@ export const NavigationFooter: React.FC<NavigationFooterProps> = ({
   onTabPress,
   onAddPress,
 }) => {
+  let insetsBottom = 0;
+  try {
+    const insets = useSafeAreaInsets();
+    insetsBottom = insets?.bottom ?? 0;
+  } catch {}
+
+  const dynamicPaddingBottom = Math.max(insetsBottom, Platform.OS === 'ios' ? 16 : 10);
+  const dynamicHeight = 58 + dynamicPaddingBottom;
+
   return (
     <View style={styles.wrapper}>
-      <View style={styles.container}>
+      <View
+        style={[
+          styles.container,
+          { height: dynamicHeight, paddingBottom: dynamicPaddingBottom },
+        ]}
+      >
         {/* Left Side: Today Tab */}
         <TouchableOpacity
           style={styles.tabButton}
@@ -91,14 +106,15 @@ const styles = StyleSheet.create({
     right: 0,
     backgroundColor: 'transparent',
     zIndex: 50,
+    alignItems: 'center',
   },
   container: {
+    width: '100%',
+    maxWidth: 600,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    height: Platform.OS === 'ios' ? 96 : 84,
-    paddingBottom: Platform.OS === 'ios' ? 28 : 14,
-    paddingHorizontal: spacing.xxxl,
+    paddingHorizontal: spacing.xl,
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
     borderTopWidth: 1,
     borderTopColor: 'rgba(212, 196, 176, 0.2)',

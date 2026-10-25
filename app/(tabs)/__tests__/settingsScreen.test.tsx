@@ -11,9 +11,10 @@ import { debugLogger } from '@/utils/debugLogger';
 import { DEFAULT_SETTINGS, Item } from '@/domain/types';
 import * as databaseModule from '@/db/database';
 
+const mockPush = jest.fn();
 jest.mock('expo-router', () => ({
   useRouter: () => ({
-    push: jest.fn(),
+    push: mockPush,
     replace: jest.fn(),
   }),
 }));
@@ -27,8 +28,21 @@ jest.mock('lucide-react-native', () => {
 });
 
 jest.mock('expo-notifications', () => ({
+  setNotificationHandler: jest.fn(),
+  setNotificationChannelAsync: jest.fn().mockResolvedValue(null),
   getPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted' }),
   requestPermissionsAsync: jest.fn().mockResolvedValue({ status: 'granted' }),
+  cancelAllScheduledNotificationsAsync: jest.fn().mockResolvedValue(undefined),
+  scheduleNotificationAsync: jest.fn().mockResolvedValue('test-notification-id'),
+  AndroidImportance: {
+    HIGH: 4,
+    DEFAULT: 3,
+  },
+  SchedulableTriggerInputTypes: {
+    DAILY: 'daily',
+    WEEKLY: 'weekly',
+    TIME_INTERVAL: 'timeInterval',
+  },
 }));
 
 jest.mock('@/platform/backupService', () => ({
@@ -81,6 +95,7 @@ describe('SettingsScreen (Preferences, Backups, CSV Export & Diagnostics)', () =
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (databaseModule.getStartupMigrationError as jest.Mock).mockReturnValue(null);
 
     updateSettingsSpy = jest.fn().mockResolvedValue(undefined);
     runPurgeSpy = jest.fn().mockResolvedValue(3);
@@ -290,7 +305,7 @@ describe('SettingsScreen (Preferences, Backups, CSV Export & Diagnostics)', () =
   });
 
   it('renders DatabaseUpdateNotice if a database migration error exists', async () => {
-    (databaseModule.getStartupMigrationError as jest.Mock).mockReturnValue(
+    (databaseModule.getStartupMigrationError as jest.Mock).mockReturnValueOnce(
       'Database migration failed'
     );
 
@@ -298,4 +313,76 @@ describe('SettingsScreen (Preferences, Backups, CSV Export & Diagnostics)', () =
 
     expect(screen.getByText('Database Update Notice')).toBeTruthy();
   });
+
+  it('triggers test notification and shows confirmation alert when button is pressed', async () => {
+    (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: 'granted' });
+    (Notifications.scheduleNotificationAsync as jest.Mock).mockResolvedValue('test-id');
+
+    screen = await render(<SettingsScreen />);
+
+    const testBtn = screen.getByTestId('test-notification-btn');
+    await act(async () => {
+      fireEvent.press(testBtn);
+    });
+
+    expect(Notifications.scheduleNotificationAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: expect.objectContaining({
+          title: 'Re:Mind Sanctuary',
+        }),
+      })
+    );
+    expect(alertSpy).toHaveBeenCalledWith(
+      'Notification Sent',
+      'A gentle test notification has been scheduled and will appear in 2 seconds.'
+    );
+  });
+
+  it('shows permission alert when test notification button is pressed without permission', async () => {
+    (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: 'denied' });
+    (Notifications.requestPermissionsAsync as jest.Mock).mockResolvedValue({ status: 'denied' });
+
+    screen = await render(<SettingsScreen />);
+
+    const testBtn = screen.getByTestId('test-notification-btn');
+    await act(async () => {
+      fireEvent.press(testBtn);
+    });
+
+    expect(alertSpy).toHaveBeenCalledWith(
+      'Permission Required',
+      'Notifications are not allowed. Please enable notifications in your device settings.',
+      expect.any(Array)
+    );
+  });
+
+  it('displays notification warning banner when system notifications are disabled', async () => {
+    (Notifications.getPermissionsAsync as jest.Mock).mockResolvedValue({ status: 'denied' });
+    (Notifications.requestPermissionsAsync as jest.Mock).mockResolvedValue({ status: 'denied' });
+
+    screen = await render(<SettingsScreen />);
+
+    // Trigger test notification or frequency change to cause permission to reflect as false
+    const testBtn = screen.getByTestId('test-notification-btn');
+    await act(async () => {
+      fireEvent.press(testBtn);
+    });
+
+    expect(screen.getByText('Notifications are disabled')).toBeTruthy();
+    expect(screen.getByText('Open device settings')).toBeTruthy();
+  });
+
+  it('replays onboarding tour and resets onboarding_completed to false', async () => {
+    screen = await render(<SettingsScreen />);
+
+    const replayBtn = screen.getByTestId('replay-onboarding-btn');
+    await act(async () => {
+      fireEvent.press(replayBtn);
+    });
+
+    expect(updateSettingsSpy).toHaveBeenCalledWith({ onboarding_completed: false });
+    expect(mockPush).toHaveBeenCalledWith('/onboarding');
+  });
 });
+
+

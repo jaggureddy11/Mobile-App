@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
@@ -22,6 +23,7 @@ import { colors, typography, spacing, radii, shadows } from '@/theme';
 import { useSettingsStore } from '@/domain/useSettingsStore';
 import { NudgeFrequency } from '@/domain/types';
 import { FEATURES } from '@/config/features';
+import { requestNotificationPermission } from '@/platform/notifications';
 import {
   DoodleReading,
   DoodleCollections,
@@ -29,9 +31,13 @@ import {
   DoodleSanctuary,
 } from '@/components/DoodleIllustrations';
 
+const SANCTUARY_ILLUSTRATION = require('../assets/images/onboarding-sanctuary.png');
+const COLLECTIONS_ILLUSTRATION = require('../assets/images/onboarding-collections.png');
+const NUDGES_ILLUSTRATION = require('../assets/images/onboarding-nudges.png');
+
 export default function OnboardingScreen() {
   const router = useRouter();
-  const { completeOnboarding, updateSettings } = useSettingsStore();
+  const { settings, completeOnboarding, updateSettings } = useSettingsStore();
 
   const maxSteps = FEATURES.accounts ? 4 : 3;
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
@@ -62,6 +68,14 @@ export default function OnboardingScreen() {
         nudge_frequency: frequency,
         user_email: email.trim() || null,
       });
+
+      // Request notification permission if user chose daily or weekly nudges
+      if (frequency !== 'never') {
+        try {
+          await requestNotificationPermission();
+        } catch {}
+      }
+
       await completeOnboarding();
       router.replace('/(tabs)/today');
     } catch (err) {
@@ -73,11 +87,35 @@ export default function OnboardingScreen() {
   const renderDoodle = () => {
     switch (step) {
       case 1:
-        return <DoodleReading size={160} />;
+        return (
+          <Image
+            source={SANCTUARY_ILLUSTRATION}
+            style={styles.stepOneIllustration}
+            resizeMode="contain"
+            accessibilityLabel="Illustration of a person reading peacefully on a crescent moon"
+            testID="onboarding-step1-illustration"
+          />
+        );
       case 2:
-        return <DoodleCollections size={160} />;
+        return (
+          <Image
+            source={COLLECTIONS_ILLUSTRATION}
+            style={styles.stepTwoIllustration}
+            resizeMode="contain"
+            accessibilityLabel="Illustration of hands organizing cards into a collection box"
+            testID="onboarding-step2-illustration"
+          />
+        );
       case 3:
-        return <DoodleTime size={160} />;
+        return (
+          <Image
+            source={NUDGES_ILLUSTRATION}
+            style={styles.stepThreeIllustration}
+            resizeMode="contain"
+            accessibilityLabel="Illustration of a phone ringing with a gentle notification bell"
+            testID="onboarding-step3-illustration"
+          />
+        );
       case 4:
       default:
         return <DoodleSanctuary size={140} />;
@@ -118,7 +156,15 @@ export default function OnboardingScreen() {
               ))}
             </View>
 
-            {FEATURES.accounts && step === 4 ? (
+            {step < maxSteps ? (
+              <TouchableOpacity
+                onPress={() => handleFinish(true)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityLabel="Skip onboarding"
+              >
+                <Text style={styles.skipText}>Skip</Text>
+              </TouchableOpacity>
+            ) : FEATURES.accounts && step === 4 ? (
               <TouchableOpacity
                 onPress={() => handleFinish(true)}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -372,7 +418,22 @@ const styles = StyleSheet.create({
   doodleContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.xxl,
+    marginBottom: spacing.lg,
+  },
+  stepOneIllustration: {
+    width: 200,
+    height: 220,
+    maxWidth: '100%',
+  },
+  stepTwoIllustration: {
+    width: 200,
+    height: 200,
+    maxWidth: '100%',
+  },
+  stepThreeIllustration: {
+    width: 170,
+    height: 170,
+    maxWidth: '100%',
   },
   stepContent: {
     width: '100%',

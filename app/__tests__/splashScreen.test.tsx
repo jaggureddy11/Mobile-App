@@ -283,4 +283,38 @@ describe('SplashScreen (Cold Start & Navigation Safety)', () => {
     expect(mockReplace).toHaveBeenCalledWith('/onboarding');
     expect(mockReplace).toHaveBeenCalledTimes(1);
   });
+
+  it('avoids stale closure bug and routes to /(tabs)/today when settings load asynchronously with onboarding_completed: true', async () => {
+    // Start with onboarding_completed: false and isLoading: true
+    useSettingsStore.setState({
+      settings: { ...DEFAULT_SETTINGS, onboarding_completed: false },
+      isLoading: true,
+    });
+
+    screen = await render(<SplashScreen />);
+
+    // Advance 500ms
+    await act(async () => {
+      jest.advanceTimersByTime(500);
+    });
+
+    // Settings store completes loading and updates state to true
+    await act(async () => {
+      useSettingsStore.setState({
+        settings: { ...DEFAULT_SETTINGS, onboarding_completed: true },
+        isLoading: false,
+      });
+    });
+
+    // Advance past the 2.2s + 300ms transition
+    await act(async () => {
+      jest.advanceTimersByTime(2000);
+    });
+
+    // Because navigateToDestination reads fresh Zustand state via useSettingsStore.getState(),
+    // it routes to /(tabs)/today and NOT /onboarding!
+    expect(mockReplace).toHaveBeenCalledWith('/(tabs)/today');
+    expect(mockReplace).toHaveBeenCalledTimes(1);
+  });
 });
+

@@ -1,5 +1,6 @@
 import { MinuteOption } from '../domain/types';
 import { cleanScrapedTitle, estimateReadTimeFromWordCount } from '../domain/classification';
+import { metadataCacheRepo } from '../db/metadataCacheRepo';
 
 export interface UrlMetadata {
   title?: string;
@@ -24,14 +25,33 @@ function decodeHtmlEntities(str: string): string {
     .trim();
 }
 
+export interface FetchMetadataOptions {
+  bypassCache?: boolean;
+}
+
 /**
- * Cleanly extracts OpenGraph / HTML metadata from any URL when online.
- * Times out after 4 seconds to never block or freeze the UI.
+ * Extracts OpenGraph / HTML metadata with local storage caching.
+ * 1. Checks persistent local storage cache for instantaneous offline/online recall.
+ * 2. Fetches online with 4-second timeout to never block UI.
+ * 3. Persists successful metadata into local storage cache.
  */
-export async function fetchUrlMetadata(rawUrl: string): Promise<UrlMetadata | null> {
+export async function fetchUrlMetadata(
+  rawUrl: string,
+  options?: FetchMetadataOptions
+): Promise<UrlMetadata | null> {
   const trimmed = rawUrl.trim();
   if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
     return null;
+  }
+
+  // 1. Check local storage cache first
+  if (!options?.bypassCache) {
+    try {
+      const cached = await metadataCacheRepo.get(trimmed);
+      if (cached) {
+        return cached;
+      }
+    } catch {}
   }
 
   const controller = new AbortController();
@@ -110,15 +130,29 @@ export async function fetchUrlMetadata(rawUrl: string): Promise<UrlMetadata | nu
 
     const cleanedTitle = cleanScrapedTitle(title, trimmed);
 
-    return {
+    const result: UrlMetadata = {
       title: cleanedTitle || title,
       description,
       imageUrl,
       siteName,
       estimatedMinutes,
     };
+
+    // Save to local storage cache if any meaningful metadata was found
+    if (result.title || result.description || result.imageUrl) {
+      metadataCacheRepo.set(trimmed, result).catch(() => {});
+    }
+
+    return result;
   } catch {
     clearTimeout(timeoutId);
+    // Offline resilience: if network failed but previously cached within 30 days, return cached
+    try {
+      const offlineFallback = await metadataCacheRepo.get(trimmed, 30);
+      if (offlineFallback) {
+        return offlineFallback;
+      }
+    } catch {}
     return null;
   }
 }

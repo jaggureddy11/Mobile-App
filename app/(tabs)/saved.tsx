@@ -4,12 +4,12 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  SafeAreaView,
   TouchableOpacity,
   Modal,
   TextInput,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import {
   Bookmark,
@@ -497,6 +497,9 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
+    width: '100%',
+    maxWidth: 600,
+    alignSelf: 'center',
   },
   // Search Bar
   searchContainer: {
@@ -725,6 +728,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borderSubtle,
     ...shadows.card,
+    width: '100%',
+    maxWidth: 400,
+    alignSelf: 'center',
   },
   modalHeader: {
     flexDirection: 'row',

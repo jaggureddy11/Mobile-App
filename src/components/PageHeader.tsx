@@ -111,6 +111,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xxl,
     paddingBottom: spacing.lg,
     backgroundColor: colors.background,
+    width: '100%',
+    maxWidth: 600,
+    alignSelf: 'center',
   },
   content: {
     flexDirection: 'row',

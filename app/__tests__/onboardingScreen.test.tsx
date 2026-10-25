@@ -24,6 +24,10 @@ jest.mock('lucide-react-native', () => {
   });
 });
 
+jest.mock('@/platform/notifications', () => ({
+  requestNotificationPermission: jest.fn().mockResolvedValue(true),
+}));
+
 describe('OnboardingScreen (Step-by-step Flow & Persistence)', () => {
   let screen: any;
   let updateSettingsSpy: jest.SpyInstance;
@@ -52,6 +56,7 @@ describe('OnboardingScreen (Step-by-step Flow & Persistence)', () => {
     expect(screen.getByText('MINDFUL SPACE')).toBeTruthy();
     expect(screen.getByText(/A calm sanctuary/i)).toBeTruthy();
     expect(screen.getByText('Next')).toBeTruthy();
+    expect(screen.getByTestId('onboarding-step1-illustration')).toBeTruthy();
   });
 
   it('navigates from Step 1 to Step 2 when Next is pressed', async () => {
@@ -64,6 +69,7 @@ describe('OnboardingScreen (Step-by-step Flow & Persistence)', () => {
 
     expect(screen.getByText('ORGANIZED INTENTION')).toBeTruthy();
     expect(screen.getByText(/Collections &/i)).toBeTruthy();
+    expect(screen.getByTestId('onboarding-step2-illustration')).toBeTruthy();
   });
 
   it('navigates back from Step 2 to Step 1 via top back arrow', async () => {
@@ -100,6 +106,7 @@ describe('OnboardingScreen (Step-by-step Flow & Persistence)', () => {
     expect(screen.getByText('GENTLE NUDGES')).toBeTruthy();
     expect(screen.getByText(/How often should/i)).toBeTruthy();
     expect(screen.getByText('Get Started')).toBeTruthy();
+    expect(screen.getByTestId('onboarding-step3-illustration')).toBeTruthy();
   });
 
   it('renders nudge frequency options with Daily selected by default', async () => {
@@ -221,4 +228,101 @@ describe('OnboardingScreen (Step-by-step Flow & Persistence)', () => {
     // Should not crash and router should not have navigated on error
     expect(mockReplace).not.toHaveBeenCalled();
   });
+
+  it('renders onboarding correctly when navigated to directly even if onboarding was previously completed', async () => {
+    useSettingsStore.setState({
+      settings: { ...DEFAULT_SETTINGS, onboarding_completed: true },
+      isLoading: false,
+    });
+
+    screen = await render(<OnboardingScreen />);
+
+    expect(screen.getByText('MINDFUL SPACE')).toBeTruthy();
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  it('renders Skip button on Step 1 and completes onboarding when pressed', async () => {
+    screen = await render(<OnboardingScreen />);
+
+    const skipBtn = screen.getByText('Skip');
+    expect(skipBtn).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.press(skipBtn);
+    });
+
+    expect(completeOnboardingSpy).toHaveBeenCalledTimes(1);
+    expect(mockReplace).toHaveBeenCalledWith('/(tabs)/today');
+  });
+
+  it('renders Skip button on Step 2 and completes onboarding when pressed', async () => {
+    screen = await render(<OnboardingScreen />);
+
+    // Step 1 -> Step 2
+    await act(async () => {
+      fireEvent.press(screen.getByText('Next'));
+    });
+
+    const skipBtn = screen.getByText('Skip');
+    expect(skipBtn).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.press(skipBtn);
+    });
+
+    expect(completeOnboardingSpy).toHaveBeenCalledTimes(1);
+    expect(mockReplace).toHaveBeenCalledWith('/(tabs)/today');
+  });
+
+  it('requests notification permission when completing onboarding with Daily frequency', async () => {
+    const { requestNotificationPermission } = require('@/platform/notifications');
+    (requestNotificationPermission as jest.Mock).mockClear();
+
+    screen = await render(<OnboardingScreen />);
+
+    // Advance to step 3
+    await act(async () => {
+      fireEvent.press(screen.getByText('Next'));
+    });
+    await act(async () => {
+      fireEvent.press(screen.getByText('Next'));
+    });
+
+    await act(async () => {
+      fireEvent.press(screen.getByText('Get Started'));
+    });
+
+    expect(requestNotificationPermission).toHaveBeenCalledTimes(1);
+    expect(completeOnboardingSpy).toHaveBeenCalledTimes(1);
+    expect(mockReplace).toHaveBeenCalledWith('/(tabs)/today');
+  });
+
+  it('does not request notification permission when completing onboarding with Purely On Demand', async () => {
+    const { requestNotificationPermission } = require('@/platform/notifications');
+    (requestNotificationPermission as jest.Mock).mockClear();
+
+    screen = await render(<OnboardingScreen />);
+
+    // Advance to step 3
+    await act(async () => {
+      fireEvent.press(screen.getByText('Next'));
+    });
+    await act(async () => {
+      fireEvent.press(screen.getByText('Next'));
+    });
+
+    // Select Purely On Demand
+    await act(async () => {
+      fireEvent.press(screen.getByText('Purely On Demand'));
+    });
+
+    await act(async () => {
+      fireEvent.press(screen.getByText('Get Started'));
+    });
+
+    expect(requestNotificationPermission).not.toHaveBeenCalled();
+    expect(completeOnboardingSpy).toHaveBeenCalledTimes(1);
+    expect(mockReplace).toHaveBeenCalledWith('/(tabs)/today');
+  });
 });
+

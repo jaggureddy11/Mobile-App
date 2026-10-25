@@ -4,13 +4,13 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  SafeAreaView,
   TouchableOpacity,
   Linking,
   ActivityIndicator,
   Modal,
   AppState,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Compass, Award, Clock, Calendar, CheckCircle2, HelpCircle, Plus, Sparkles } from 'lucide-react-native';
 import {
@@ -403,47 +403,53 @@ export default function TodayScreen() {
                 When would you like this item to resurface?
               </Text>
 
-              <TouchableOpacity
-                style={styles.snoozeOption}
-                onPress={() => handleSelectSnooze('tomorrow')}
-                activeOpacity={0.7}
+              <ScrollView
+                style={styles.snoozeScroll}
+                showsVerticalScrollIndicator={false}
+                bounces={false}
               >
-                <View style={styles.snoozeIconBox}>
-                  <Clock size={20} color={colors.accent} />
-                </View>
-                <View style={styles.snoozeTextBox}>
-                  <Text style={styles.snoozeOptionTitle}>Tomorrow</Text>
-                  <Text style={styles.snoozeOptionDesc}>Resurfaces tomorrow at your nudge time</Text>
-                </View>
-              </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.snoozeOption}
+                  onPress={() => handleSelectSnooze('tomorrow')}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.snoozeIconBox}>
+                    <Clock size={20} color={colors.accent} />
+                  </View>
+                  <View style={styles.snoozeTextBox}>
+                    <Text style={styles.snoozeOptionTitle}>Tomorrow</Text>
+                    <Text style={styles.snoozeOptionDesc}>Resurfaces tomorrow at your nudge time</Text>
+                  </View>
+                </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.snoozeOption}
-                onPress={() => handleSelectSnooze('weekend')}
-                activeOpacity={0.7}
-              >
-                <View style={styles.snoozeIconBox}>
-                  <Calendar size={20} color={colors.accent} />
-                </View>
-                <View style={styles.snoozeTextBox}>
-                  <Text style={styles.snoozeOptionTitle}>This weekend</Text>
-                  <Text style={styles.snoozeOptionDesc}>Saturday at 10:00 AM</Text>
-                </View>
-              </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.snoozeOption}
+                  onPress={() => handleSelectSnooze('weekend')}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.snoozeIconBox}>
+                    <Calendar size={20} color={colors.accent} />
+                  </View>
+                  <View style={styles.snoozeTextBox}>
+                    <Text style={styles.snoozeOptionTitle}>This weekend</Text>
+                    <Text style={styles.snoozeOptionDesc}>Saturday at 10:00 AM</Text>
+                  </View>
+                </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.snoozeOption}
-                onPress={() => handleSelectSnooze('next_week')}
-                activeOpacity={0.7}
-              >
-                <View style={styles.snoozeIconBox}>
-                  <Sparkles size={20} color={colors.accent} />
-                </View>
-                <View style={styles.snoozeTextBox}>
-                  <Text style={styles.snoozeOptionTitle}>Next week</Text>
-                  <Text style={styles.snoozeOptionDesc}>Monday at your nudge time</Text>
-                </View>
-              </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.snoozeOption}
+                  onPress={() => handleSelectSnooze('next_week')}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.snoozeIconBox}>
+                    <Sparkles size={20} color={colors.accent} />
+                  </View>
+                  <View style={styles.snoozeTextBox}>
+                    <Text style={styles.snoozeOptionTitle}>Next week</Text>
+                    <Text style={styles.snoozeOptionDesc}>Monday at your nudge time</Text>
+                  </View>
+                </TouchableOpacity>
+              </ScrollView>
 
               <TouchableOpacity
                 style={styles.snoozeCancelButton}
@@ -498,6 +504,9 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
+    width: '100%',
+    maxWidth: 600,
+    alignSelf: 'center',
   },
   loadingContainer: {
     flex: 1,
@@ -515,6 +524,9 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     paddingBottom: 130,
+    width: '100%',
+    maxWidth: 600,
+    alignSelf: 'center',
   },
   chipsSection: {
     paddingHorizontal: spacing.xxl,
@@ -606,6 +618,7 @@ const styles = StyleSheet.create({
   modalCard: {
     width: '100%',
     maxWidth: 340,
+    maxHeight: '85%',
     backgroundColor: colors.card,
     borderRadius: radii.cardLarge,
     padding: spacing.xxxl,
@@ -669,10 +682,14 @@ const styles = StyleSheet.create({
   snoozeSheet: {
     width: '100%',
     maxWidth: 380,
+    maxHeight: '85%',
     backgroundColor: colors.card,
     borderRadius: radii.cardLarge,
     padding: spacing.xxl,
     ...shadows.card,
+  },
+  snoozeScroll: {
+    maxHeight: 280,
   },
   sheetHandle: {
     width: 36,
@@ -744,6 +761,7 @@ const styles = StyleSheet.create({
   celebrationCard: {
     width: '100%',
     maxWidth: 340,
+    maxHeight: '85%',
     backgroundColor: colors.card,
     borderRadius: radii.cardLarge,
     padding: spacing.xxxl,

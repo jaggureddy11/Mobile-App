@@ -4,14 +4,15 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  SafeAreaView,
   TouchableOpacity,
   Alert,
   Share,
   ActivityIndicator,
   Switch,
   Linking,
+  AppState,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
 import {
   Bell,
@@ -28,7 +29,10 @@ import {
   RefreshCw,
   CheckCircle2,
   FileText,
+  Sparkles,
+  HelpCircle,
 } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
 import { PageHeader, DatabaseUpdateNotice } from '@/components';
 import { colors, typography, spacing, radii, shadows } from '@/theme';
 import { useSettingsStore } from '@/domain/useSettingsStore';
@@ -40,12 +44,15 @@ import { syncService } from '@/platform/syncService';
 import { FEATURES } from '@/config/features';
 import { debugLogger } from '@/utils/debugLogger';
 import { getStartupMigrationError, retryDatabaseInitialization } from '@/db/database';
+import { requestNotificationPermission, sendTestNotification } from '@/platform/notifications';
 
 export default function SettingsScreen() {
+  const router = useRouter();
   const { settings, updateSettings, loadSettings } = useSettingsStore();
   const { items, runPurge, loadItems } = useItemsStore();
   const { loadCollections } = useCollectionsStore();
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isTestingNotification, setIsTestingNotification] = useState(false);
   const [hasNotificationPermission, setHasNotificationPermission] = useState(true);
   const [migrationError, setMigrationError] = useState<string | null>(getStartupMigrationError());
 
@@ -58,21 +65,57 @@ export default function SettingsScreen() {
   };
 
   React.useEffect(() => {
-    Notifications.getPermissionsAsync()
-      .then(({ status }) => setHasNotificationPermission(status === 'granted'))
-      .catch(() => {});
+    const checkPermissions = () => {
+      Notifications.getPermissionsAsync()
+        .then(({ status }) => setHasNotificationPermission(status === 'granted'))
+        .catch(() => {});
+    };
+
+    checkPermissions();
+
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active') {
+        checkPermissions();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
   }, []);
 
   const savedCount = items.filter((i) => i.status === 'pending').length;
   const doneCount = items.filter((i) => i.status === 'done').length;
 
-  const cycleFrequency = () => {
+  const cycleFrequency = async () => {
     const cycle: Record<NudgeFrequency, NudgeFrequency> = {
       daily: 'weekly',
       weekly: 'never',
       never: 'daily',
     };
-    updateSettings({ nudge_frequency: cycle[settings.nudge_frequency] });
+    const nextFreq = cycle[settings.nudge_frequency];
+
+    if (nextFreq !== 'never') {
+      const { status } = await Notifications.getPermissionsAsync().catch(() => ({ status: 'undetermined' }));
+      if (status !== 'granted') {
+        const granted = await requestNotificationPermission();
+        setHasNotificationPermission(granted);
+        if (!granted && status === 'denied') {
+          Alert.alert(
+            'Notifications Disabled',
+            'To receive your gentle daily or weekly nudges, please enable notifications in your device settings.',
+            [
+              { text: 'Later', style: 'cancel' },
+              { text: 'Open Settings', onPress: () => Linking.openSettings().catch(() => {}) },
+            ]
+          );
+        }
+      } else {
+        setHasNotificationPermission(true);
+      }
+    }
+
+    await updateSettings({ nudge_frequency: nextFreq });
   };
 
   const cycleTime = () => {
@@ -80,6 +123,34 @@ export default function SettingsScreen() {
     const idx = times.indexOf(settings.nudge_time);
     const nextTime = times[(idx + 1) % times.length];
     updateSettings({ nudge_time: nextTime });
+  };
+
+  const handleTestNotification = async () => {
+    setIsTestingNotification(true);
+    try {
+      const sent = await sendTestNotification();
+      if (sent) {
+        setHasNotificationPermission(true);
+        Alert.alert(
+          'Notification Sent',
+          'A gentle test notification has been scheduled and will appear in 2 seconds.'
+        );
+      } else {
+        setHasNotificationPermission(false);
+        Alert.alert(
+          'Permission Required',
+          'Notifications are not allowed. Please enable notifications in your device settings.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Open Settings', onPress: () => Linking.openSettings().catch(() => {}) },
+          ]
+        );
+      }
+    } catch {
+      Alert.alert('Notice', 'Unable to trigger test notification on this device.');
+    } finally {
+      setIsTestingNotification(false);
+    }
   };
 
   const handleSyncNow = async () => {
@@ -174,6 +245,11 @@ export default function SettingsScreen() {
     } catch (err: any) {
       Alert.alert('Unable to copy debug info', err?.message || 'Unknown error');
     }
+  };
+
+  const handleReplayOnboarding = async () => {
+    await updateSettings({ onboarding_completed: false });
+    router.push('/onboarding');
   };
 
   const formatLastSynced = () => {
@@ -340,6 +416,25 @@ export default function SettingsScreen() {
               </View>
               <Text style={styles.settingValue}>22:00 – 08:00</Text>
             </View>
+
+            <TouchableOpacity
+              style={styles.settingRow}
+              onPress={handleTestNotification}
+              disabled={isTestingNotification}
+              activeOpacity={0.7}
+              testID="test-notification-btn"
+            >
+              <View style={styles.settingIconBox}>
+                <Sparkles size={20} color={colors.accent} />
+              </View>
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingTitle}>Test notification</Text>
+                <Text style={styles.settingSubtitle}>
+                  {isTestingNotification ? 'Scheduling test...' : 'Send a quiet test nudge (2s)'}
+                </Text>
+              </View>
+              <ChevronRight size={18} color={colors.accent} />
+            </TouchableOpacity>
           </View>
 
           {/* Data & Privacy */}
@@ -420,6 +515,22 @@ export default function SettingsScreen() {
               </View>
               <ChevronRight size={18} color={colors.accent} />
             </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.settingRow}
+              onPress={handleReplayOnboarding}
+              activeOpacity={0.7}
+              testID="replay-onboarding-btn"
+            >
+              <View style={styles.settingIconBox}>
+                <HelpCircle size={20} color={colors.accent} />
+              </View>
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingTitle}>Replay Onboarding Tour</Text>
+                <Text style={styles.settingSubtitle}>Review mindful sanctuary guide & illustrations</Text>
+              </View>
+              <ChevronRight size={18} color={colors.accent} />
+            </TouchableOpacity>
           </View>
 
           {/* Privacy Guarantee */}
@@ -454,6 +565,9 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
+    width: '100%',
+    maxWidth: 600,
+    alignSelf: 'center',
   },
   scrollView: {
     flex: 1,

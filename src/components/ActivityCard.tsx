@@ -154,6 +154,9 @@ const styles = StyleSheet.create({
     borderColor: colors.borderSubtle,
     ...shadows.card,
     overflow: 'hidden',
+    width: '100%',
+    maxWidth: 600,
+    alignSelf: 'center',
   },
   cardImageContainer: {
     height: 160,

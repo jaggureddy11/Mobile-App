@@ -2,6 +2,18 @@ import * as Crypto from 'expo-crypto';
 import { getDatabase } from './database';
 import { Collection } from '../domain/types';
 
+function generateUUID(): string {
+  try {
+    const id = Crypto?.randomUUID?.();
+    if (id) return id;
+  } catch {}
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 export const collectionsRepo = {
   async getAll(): Promise<Collection[]> {
     const db = await getDatabase();
@@ -39,7 +51,7 @@ export const collectionsRepo = {
   async create(name: string, color?: string | null): Promise<Collection> {
     const db = await getDatabase();
     const newCollection: Collection = {
-      id: Crypto.randomUUID(),
+      id: generateUUID(),
       name: name.trim(),
       color: color || '#8A7E72',
       created_at: new Date().toISOString(),
@@ -74,7 +86,7 @@ export const collectionsRepo = {
 
     for (const item of defaults) {
       const col: Collection = {
-        id: Crypto.randomUUID(),
+        id: generateUUID(),
         name: item.name,
         color: item.color,
         created_at: now,
